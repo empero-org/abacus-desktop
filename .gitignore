@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+.DS_Store
+coverage/
+.env
+.env.local
+.env.*.local
+.cache/
+.pnpm-store/
+.electron-cache/
+.electron-builder-cache/

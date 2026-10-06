@@ -1,0 +1,262 @@
+/*
+ * The Abacus theme: Tailwind, the tokens every component reads, and the base
+ * styles. Empero palette: midnight paper, lavender ink, one purple accent.
+ * Dark is the default; light mirrors it on lavender paper. Tokens are defined
+ * once in @theme (light) and re-pointed under .dark.
+ */
+@import "tailwindcss" source("..");
+@import "tw-animate-css";
+@import "tailwind-scrollbar-hide/v4";
+@import "../vendor/shadcn-tailwind.css";
+@import "katex/dist/katex.min.css";
+@import "@xterm/xterm/css/xterm.css";
+
+/* Streamdown builds class names at runtime; Tailwind has to see them. */
+@source "../../../../node_modules/streamdown/dist";
+@source "../../../../node_modules/@streamdown/code/dist";
+
+/* `dark:` follows the app's own scheme (the .dark class), not the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/inter-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range:
+    U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("./fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Interface type scale. Everything sizes off one knob, --ui-font-size. */
+  --text-ui-xl: calc(var(--ui-font-size) + 4px);
+  --text-ui-lg: calc(var(--ui-font-size) + 2px);
+  --text-ui-base: var(--ui-font-size);
+  --text-ui-caption: calc(var(--ui-font-size) - 1px);
+  --text-ui-sm: calc(var(--ui-font-size) - 2px);
+  --text-ui-xs: calc(var(--ui-font-size) - 4px);
+  --text-mobile-input-safe: 16px;
+
+  /* Light: lavender paper, deep purple accent. */
+  --color-background: #f7f5fa;
+  --color-sidebar: #efecf4;
+  --color-panel: #f7f5fa;
+  --color-card: #ffffff;
+  --color-card-border: rgba(23, 18, 31, 0.09);
+  --color-card-selected: #ece7f6;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #17121f;
+  --color-popover-border: rgba(23, 18, 31, 0.1);
+  --color-menu: #ffffff;
+  --color-menu-hover: #f1edf8;
+  --color-input: #ffffff;
+  --color-input-focused: #ffffff;
+  --color-input-border: rgba(23, 18, 31, 0.12);
+  --color-input-border-hover: rgba(23, 18, 31, 0.2);
+  --color-input-border-focused: #7b3fe4;
+
+  --color-brand: #7b3fe4;
+  --color-primary: #7b3fe4;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e4dff0;
+  --color-secondary-foreground: #17121f;
+  --color-ring: #7b3fe4;
+
+  --color-foreground: #17121f;
+  --color-foreground-subtle: #453e51;
+  --color-foreground-subtlest: #625b6f;
+  --color-on-surface-muted: #625b6f;
+  --color-muted: rgba(23, 18, 31, 0.06);
+  --color-muted-foreground: #625b6f;
+
+  --color-border: rgba(23, 18, 31, 0.09);
+  --color-border-hover: rgba(23, 18, 31, 0.18);
+  --color-hover: rgba(23, 18, 31, 0.05);
+  --color-selected: rgba(123, 63, 228, 0.12);
+  --color-surface: rgba(23, 18, 31, 0.035);
+  --color-surface-hover: rgba(23, 18, 31, 0.06);
+
+  --color-tooltip: #17121f;
+  --color-tooltip-foreground: #f7f5fa;
+
+  --color-success: #127a46;
+  --color-success-foreground: #ffffff;
+  --color-warning: #8a5600;
+  --color-warning-foreground: #ffffff;
+  --color-destructive: #c42b3c;
+  --color-destructive-foreground: #ffffff;
+  --color-diff-added: #127a46;
+  --color-diff-removed: #c42b3c;
+  --color-terminal-bg: #f3f1f7;
+  --color-terminal-fg: #17121f;
+}
+
+.dark {
+  /* Dark: the midnight paper and lavender ink of abacus.empero.org. */
+  --color-background: #0e0b14;
+  --color-sidebar: #09070d;
+  --color-panel: #0e0b14;
+  --color-card: #151020;
+  --color-card-border: rgba(233, 228, 240, 0.075);
+  --color-card-selected: #1f1730;
+  --color-popover: #1b1529;
+  --color-popover-foreground: #e9e4f0;
+  --color-popover-border: rgba(233, 228, 240, 0.09);
+  --color-menu: #1b1529;
+  --color-menu-hover: rgba(233, 228, 240, 0.06);
+  --color-input: #151020;
+  --color-input-focused: #151020;
+  --color-input-border: rgba(233, 228, 240, 0.1);
+  --color-input-border-hover: rgba(233, 228, 240, 0.18);
+  --color-input-border-focused: #b66bff;
+
+  --color-brand: #b66bff;
+  --color-primary: #b66bff;
+  --color-primary-foreground: #0e0b14;
+  --color-secondary: #2a2238;
+  --color-secondary-foreground: #e9e4f0;
+  --color-ring: #b66bff;
+
+  --color-foreground: #e9e4f0;
+  --color-foreground-subtle: #bcb5c9;
+  --color-foreground-subtlest: #8f88a0;
+  --color-on-surface-muted: #8f88a0;
+  --color-muted: rgba(233, 228, 240, 0.07);
+  --color-muted-foreground: #8f88a0;
+
+  --color-border: rgba(233, 228, 240, 0.075);
+  --color-border-hover: rgba(233, 228, 240, 0.16);
+  --color-hover: rgba(233, 228, 240, 0.06);
+  --color-selected: rgba(182, 107, 255, 0.16);
+  --color-surface: rgba(233, 228, 240, 0.04);
+  --color-surface-hover: rgba(233, 228, 240, 0.07);
+
+  --color-tooltip: #e9e4f0;
+  --color-tooltip-foreground: #0e0b14;
+
+  --color-success: #7ee2a8;
+  --color-success-foreground: #0e0b14;
+  --color-warning: #f2c46b;
+  --color-warning-foreground: #0e0b14;
+  --color-destructive: #ff8f9b;
+  --color-destructive-foreground: #0e0b14;
+  --color-diff-added: #7ee2a8;
+  --color-diff-removed: #ff8f9b;
+  --color-terminal-bg: #09070d;
+  --color-terminal-fg: #e9e4f0;
+
+  --abacus-glow: rgba(182, 107, 255, 0.16);
+}
+
+:root {
+  --ui-font-size: 14px;
+  --app-chrome-height: 44px;
+  --abacus-glow: rgba(123, 63, 228, 0.1);
+}
+
+@layer base {
+  /* Tailwind v4 borders default to currentColor; every hairline here is the
+     border token instead, or dividers light up in the text color. */
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: var(--ui-font-size);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-brand) 35%, transparent);
+  }
+
+  /* A visible ring for keyboard focus only; a mouse click shows none. */
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-ring) 55%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+/* Quiet scrollbars: a thin thumb and nothing else. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none;
+  background: transparent;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--color-foreground) 14%, transparent) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--color-foreground) 24%, transparent);
+}
+
+/* The top bar is the window's drag handle; anything clickable inside opts out. */
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-no-drag,
+.app-drag button,
+.app-drag a,
+.app-drag input,
+.app-drag [role="button"],
+.app-drag [role="combobox"] {
+  -webkit-app-region: no-drag;
+}
+
+/* Mono uppercase micro-labels, the Empero signature. */
+.abacus-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-foreground-subtlest);
+}
+
+.abacus-glow {
+  background-image: radial-gradient(60rem 30rem at 85% -10%, var(--abacus-glow), transparent 70%);
+}

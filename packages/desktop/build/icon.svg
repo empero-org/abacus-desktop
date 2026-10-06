@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The abacus mark on a rounded tile, inset on the 1024 grid the way a
+       macOS app icon is, so it sits right in the Dock and anywhere else. -->
+  <defs>
+    <radialGradient id="glow" cx="0.8" cy="0.12" r="0.85">
+      <stop offset="0" stop-color="#b66bff" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#b66bff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#0e0b14" filter="url(#shadow)"/>
+  <rect x="100" y="100" width="824" height="824" fill="url(#glow)" clip-path="url(#tile)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#e9e4f0" stroke-opacity="0.1"/>
+  <g transform="translate(100 100) scale(1.609375)" fill="#e9e4f0">
+    <rect x="107.52" y="107.52" width="296.96" height="16.24"/>
+    <rect x="107.52" y="388.24" width="296.96" height="16.24"/>
+    <rect x="107.52" y="107.52" width="16.24" height="296.96"/>
+    <rect x="388.24" y="107.52" width="16.24" height="296.96"/>
+    <rect x="172.48" y="178.28" width="167.04" height="16.24"/>
+    <rect x="172.48" y="247.88" width="167.04" height="16.24"/>
+    <rect x="172.48" y="317.48" width="167.04" height="16.24"/>
+    <rect x="201.48" y="153.92" width="16.24" height="204.16"/>
+    <rect x="294.28" y="153.92" width="16.24" height="204.16"/>
+  </g>
+</svg>

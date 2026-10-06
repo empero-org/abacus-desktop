@@ -1,0 +1,335 @@
+// Where the person writes. Enter sends; while a turn runs, a message steers it
+// and the send button turns into Stop. `/` completes commands and `@` files;
+// images and text files come in by paste, drop or the attach button. Anything
+// the agent is blocked on (an approval, a question) sits above the box, where
+// the eye already is.
+
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type ComponentProps,
+  type DragEvent,
+  type KeyboardEvent,
+} from "react";
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, ShieldCheckIcon, SquareIcon } from "lucide-react";
+import { cn } from "@/components/lib/utils.js";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
+import { useAbacus } from "../context.js";
+import type { Attachment } from "../attachments.js";
+import type { AgentMode, ReasoningEffort } from "../protocol.js";
+import { AttachButton, AttachmentStrip } from "./Attachments.js";
+import { CompletionList, useCompletion } from "./Completion.js";
+import { Requests } from "./Requests.js";
+
+export function Composer() {
+  const thread = useAbacus((state) => state.thread);
+  const draft = useAbacus((state) =>
+    state.thread ? (state.drafts[state.thread.threadId] ?? "") : "",
+  );
+  const setDraft = useAbacus((state) => state.setDraft);
+  const send = useAbacus((state) => state.send);
+  const interrupt = useAbacus((state) => state.interrupt);
+  const attachments = useAbacus((state) =>
+    state.thread ? (state.attachments[state.thread.threadId] ?? NONE) : NONE,
+  );
+  const attach = useAbacus((state) => state.attach);
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const running = Boolean(thread?.turnId);
+  const blocked = (thread?.pending.length ?? 0) > 0;
+  const ready = Boolean(draft.trim()) || attachments.length > 0;
+  const threadId = thread?.threadId ?? "";
+  const completion = useCompletion(
+    textarea,
+    draft,
+    (text) => setDraft(threadId, text),
+    (text) => void send(text),
+  );
+
+  // A new or reopened thread puts the cursor where typing starts.
+  useEffect(() => {
+    textarea.current?.focus();
+  }, [thread?.threadId]);
+
+  if (!thread) return null;
+
+  const submit = () => {
+    if (!ready || blocked) return;
+    void send(draft);
+  };
+
+  const take = (files: File[]) => {
+    if (files.length > 0) void attach(files);
+  };
+
+  // A screenshot or a copied file arrives as a file; text pastes as usual.
+  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = [...event.clipboardData.files];
+    if (files.length === 0) return;
+    event.preventDefault();
+    take(files);
+  };
+
+  const onDragOver = (event: DragEvent) => {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDragging(true);
+  };
+
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    take([...event.dataTransfer.files]);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (completion.onKeyDown(event)) return;
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      submit();
+    }
+    if (event.key === "Escape" && running) {
+      event.preventDefault();
+      void interrupt();
+    }
+  };
+
+  return (
+    <div className="shrink-0 px-6 pb-5">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+        <Requests />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+          onDragOver={onDragOver}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+              setDragging(false);
+          }}
+          onDrop={onDrop}
+          className={cn(
+            "relative flex flex-col rounded-2xl border bg-card shadow-[0_8px_30px_-12px_rgb(0_0_0/0.35)] transition-colors focus-within:border-brand/25",
+            blocked && "opacity-60",
+            dragging && "border-brand/60 bg-selected",
+          )}
+        >
+          <CompletionList completion={completion} />
+          {attachments.length > 0 ? <AttachmentStrip attachments={attachments} /> : null}
+          <textarea
+            ref={textarea}
+            value={draft}
+            onChange={(event) => {
+              setDraft(thread.threadId, event.target.value);
+              completion.onCaret();
+            }}
+            onSelect={completion.onCaret}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            disabled={blocked}
+            rows={1}
+            placeholder={
+              blocked
+                ? "Answer the request above first"
+                : running
+                  ? "Steer the running turn…"
+                  : "Ask abacus anything — / for commands, @ for files"
+            }
+            className="max-h-[40vh] min-h-[52px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"
+            aria-label="Message"
+          />
+          <div className="flex items-center gap-1 px-2.5 pt-1 pb-2.5">
+            <AttachButton onFiles={take} />
+            <ModeMenu />
+            <ModelMenu />
+            <EffortMenu />
+            <div className="flex-1" />
+            {thread.autoApprove ? <AutoApproveChip /> : null}
+            {running && !ready ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => void interrupt()}
+                    className="flex size-8 items-center justify-center rounded-full bg-foreground text-background hover:opacity-85"
+                    aria-label="Stop"
+                  >
+                    <SquareIcon className="size-3 fill-current" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Stop (Esc)</TooltipContent>
+              </Tooltip>
+            ) : (
+              <button
+                type="submit"
+                disabled={!ready || blocked}
+                className="flex size-8 items-center justify-center rounded-full bg-brand text-primary-foreground transition-opacity hover:opacity-85 disabled:bg-foreground/15 disabled:text-foreground-subtlest"
+                aria-label={running ? "Steer" : "Send"}
+              >
+                <ArrowUpIcon className="size-4" strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const NONE: Attachment[] = [];
+
+const MODES: { value: AgentMode; label: string; hint: string }[] = [
+  { value: "auto", label: "Auto", hint: "Picks plan or build for each request" },
+  { value: "plan", label: "Plan", hint: "Investigates and plans, changes nothing" },
+  { value: "build", label: "Build", hint: "Makes the change straight away" },
+];
+
+const EFFORTS: { value: ReasoningEffort | null; label: string }[] = [
+  { value: null, label: "Default" },
+  { value: "minimal", label: "Minimal" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra high" },
+  { value: "max", label: "Max" },
+];
+
+function Pill({ children, ...props }: ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex items-center gap-1 rounded-full px-2.5 py-1 text-ui-sm text-foreground-subtle hover:bg-hover hover:text-foreground aria-expanded:bg-hover aria-expanded:text-foreground disabled:opacity-50"
+    >
+      {children}
+      <ChevronDownIcon className="size-3 opacity-60" />
+    </button>
+  );
+}
+
+function ModeMenu() {
+  const mode = useAbacus((state) => state.thread?.mode ?? "auto");
+  const setMode = useAbacus((state) => state.setMode);
+  const current = MODES.find((entry) => entry.value === mode) ?? MODES[0]!;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Pill>
+          <span className={cn(mode !== "auto" && "text-brand")}>{current.label}</span>
+        </Pill>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-64">
+        <DropdownMenuLabel className="abacus-label">Mode</DropdownMenuLabel>
+        {MODES.map((entry) => (
+          <DropdownMenuItem
+            key={entry.value}
+            onSelect={() => void setMode(entry.value)}
+            className="items-start gap-2.5"
+          >
+            <CheckIcon className={cn("mt-0.5 size-3.5", entry.value !== mode && "invisible")} />
+            <span className="flex flex-col">
+              <span>{entry.label}</span>
+              <span className="text-ui-sm text-foreground-subtlest">{entry.hint}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ModelMenu() {
+  const model = useAbacus((state) => state.thread?.model ?? "");
+  const models = useAbacus((state) => state.models);
+  const running = useAbacus((state) => Boolean(state.thread?.turnId));
+  const setModel = useAbacus((state) => state.setModel);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={running || models.length === 0}>
+        <Pill title={running ? "Change the model between turns" : undefined}>
+          <span className="max-w-48 truncate">{model || "Model"}</span>
+        </Pill>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="max-h-80 w-72 overflow-y-auto">
+        <DropdownMenuLabel className="abacus-label">Model</DropdownMenuLabel>
+        {models.map((entry) => (
+          <DropdownMenuItem
+            key={entry.id}
+            onSelect={() => void setModel(entry.id)}
+            className="gap-2.5"
+          >
+            <CheckIcon className={cn("size-3.5 shrink-0", entry.id !== model && "invisible")} />
+            <span className="truncate font-mono text-ui-sm">{entry.id}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function EffortMenu() {
+  const effort = useAbacus((state) => state.thread?.reasoningEffort ?? null);
+  const setReasoningEffort = useAbacus((state) => state.setReasoningEffort);
+  const current = EFFORTS.find((entry) => entry.value === effort) ?? EFFORTS[0]!;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Pill>
+          <span>{effort ? current.label : "Effort"}</span>
+        </Pill>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-48">
+        <DropdownMenuLabel className="abacus-label">Reasoning effort</DropdownMenuLabel>
+        {EFFORTS.map((entry, index) => (
+          <Fragment key={entry.label}>
+            {index === 1 ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem
+              onSelect={() => void setReasoningEffort(entry.value)}
+              className="gap-2.5"
+            >
+              <CheckIcon className={cn("size-3.5", entry.value !== effort && "invisible")} />
+              {entry.label}
+            </DropdownMenuItem>
+          </Fragment>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function AutoApproveChip() {
+  const setAutoApprove = useAbacus((state) => state.setAutoApprove);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => void setAutoApprove(false)}
+          className="mr-1 flex items-center gap-1 rounded-full px-2 py-1 text-ui-sm text-warning hover:bg-warning/10"
+        >
+          <ShieldCheckIcon className="size-3.5" />
+          Auto-approve
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        Tools run without asking. Click to have abacus ask first again.
+      </TooltipContent>
+    </Tooltip>
+  );
+}

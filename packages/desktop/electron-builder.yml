@@ -1,0 +1,58 @@
+# Installers for macOS, Windows and Linux. `pnpm package` builds out/ first;
+# this packs it with the one runtime dependency, node-pty.
+
+appId: org.empero.abacus.desktop
+productName: Abacus
+copyright: Copyright © 2026 Empero
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - out/**
+  - "!out/**/*.map"
+  - package.json
+
+# node-pty's native binary cannot be loaded from inside the asar archive.
+asarUnpack:
+  - "**/node_modules/@lydell/node-pty*/**"
+
+artifactName: Abacus-${version}-${os}-${arch}.${ext}
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # The architecture comes from the command line (--arm64, --x64); see the
+  # release workflow for why each is built on its own machine.
+  target: [dmg, zip]
+
+dmg:
+  title: Abacus ${version}
+
+win:
+  icon: build/icon.png
+  target: [nsis]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Abacus
+
+linux:
+  icon: build/icon.png
+  executableName: abacus-desktop
+  category: Development
+  maintainer: Empero <hello@empero.org>
+  synopsis: A desktop for the abacus coding agent
+  description: Abacus Desktop drives the abacus CLI in a window, with your projects, sessions and a terminal.
+  target:
+    - AppImage
+    - deb
+    - tar.gz
+
+publish: null

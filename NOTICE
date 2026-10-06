@@ -1,0 +1,18 @@
+Abacus Desktop
+Copyright 2026 Empero
+
+This product includes software derived from ZCode
+(https://github.com/zai-org/ZCode), published by Z.ai under the Apache
+License, Version 2.0. Abacus Desktop started from ZCode 3.14.3; the files it
+kept were modified by Empero.
+
+This product includes software derived from AI Elements
+(https://github.com/vercel/ai-elements), Copyright 2023 Vercel, Inc., under
+the Apache License, Version 2.0.
+
+This product includes software derived from shadcn/ui
+(https://github.com/shadcn-ui/ui), Copyright (c) 2023 shadcn, under the MIT
+License.
+
+See THIRD-PARTY-NOTICES.md for which files come from where, and the fonts
+bundled with the app.

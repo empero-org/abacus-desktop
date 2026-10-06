@@ -1,0 +1,39 @@
+{
+  "name": "@abacus/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Abacus desktop app: a workspace window for the abacus coding agent.",
+  "homepage": "https://abacus.empero.org",
+  "license": "Apache-2.0",
+  "author": "Empero <hello@empero.org>",
+  "type": "module",
+  "main": "out/main/index.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/build.mjs && electron-builder --config electron-builder.yml",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.15"
+  },
+  "devDependencies": {
+    "@abacus/ui": "workspace:*",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron": "41.0.3",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.25.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.2",
+    "vitest": "^4.0.0"
+  },
+  "productName": "Abacus"
+}
