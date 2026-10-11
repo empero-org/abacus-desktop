@@ -13,13 +13,13 @@ import {
   type ConfigValueResult,
   type InitializeResult,
   type Item,
-  type ModelEntry,
   type ThreadSnapshot,
   type ThreadSummary,
 } from "./protocol.js";
 import { inputPart, isAttachableImage, readAttachment, type Attachment } from "./attachments.js";
-import { mergeCommands, parseCommand, type CommandEntry } from "./completion.js";
+import { mergeCommands, parseCommand } from "./completion.js";
 import { addPending, applyNotification, resolvePending, threadFromSnapshot } from "./thread.js";
+import { serverLists } from "./lists.js";
 import { runWindowCommand } from "./windowCommands.js";
 
 import type { AbacusState } from "./state.js";
@@ -38,6 +38,7 @@ function errorMessage(error: unknown): string {
 
 export function createAbacusStore(bridge: AbacusBridge) {
   return create<AbacusState>((set, get) => {
+    const { refreshModels, refreshCommands, refreshTasks } = serverLists(bridge, get, set);
     const guard = async (work: () => Promise<void>) => {
       try {
         await work();
@@ -438,36 +439,6 @@ export function createAbacusStore(bridge: AbacusBridge) {
         set({ notices: get().notices.filter((notice) => notice.id !== id) });
       },
     };
-
-    async function refreshTasks() {
-      if (!get().capabilities.tasks) return set({ tasks: [] });
-      try {
-        const { tasks } = await bridge.request<{ tasks: BackgroundTask[] }>("tasks/list");
-        set({ tasks });
-      } catch {
-        set({ tasks: [] });
-      }
-    }
-
-    async function refreshCommands() {
-      if (!get().capabilities.commands) return set({ commands: mergeCommands([]) });
-      try {
-        const { commands } = await bridge.request<{ commands: CommandEntry[] }>("commands/list");
-        set({ commands: mergeCommands(commands) });
-      } catch {
-        set({ commands: mergeCommands([]) });
-      }
-    }
-
-    async function refreshModels() {
-      try {
-        const { models } = await bridge.request<{ models: ModelEntry[] }>("model/list");
-        set({ models });
-      } catch {
-        // A provider without a model listing still works with the configured model.
-        set({ models: [] });
-      }
-    }
   });
 }
 
