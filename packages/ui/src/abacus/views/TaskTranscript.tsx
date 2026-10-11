@@ -69,7 +69,9 @@ export function TaskTranscript({ task, now }: { task: BackgroundTask; now: numbe
                   task.state === "failed" && "text-destructive",
                 )}
               >
-                {running ? toolActivity(task.tool) : task.state}
+                {running
+                  ? toolActivity(task.tool)
+                  : task.state.charAt(0).toUpperCase() + task.state.slice(1)}
               </span>
             </div>
           </div>

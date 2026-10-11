@@ -32,7 +32,8 @@ const BUILT_IN: Record<string, Verbs> = {
   git_commit: ["Committing", "Committed", "commit"],
   git_checkout: ["Checking out", "Checked out", "check out"],
   git_restore: ["Restoring", "Restored", "restore"],
-  spawn_subagents: ["Running subagents for", "Ran subagents for", "run subagents for"],
+  spawn_subagents: ["Starting subagents", "Started subagents", "start subagents"],
+  message_subagent: ["Messaging", "Messaged", "message"],
   mode_set: ["Switching mode", "Switched mode", "switch mode"],
   ask_user: ["Asking", "Asked", "ask"],
 };
