@@ -6,6 +6,8 @@ import type { CommandEntry } from "./completion.js";
 import type {
   AgentMode,
   ApprovalDecision,
+  BackgroundTask,
+  Item,
   ModelEntry,
   ReasoningEffort,
   ThreadSummary,
@@ -44,6 +46,8 @@ export interface AbacusState {
   attachments: Record<string, Attachment[]>;
   /** The `/` commands to offer: this window's, then the app server's (skills, plugins). */
   commands: CommandEntry[];
+  /** Background workers of this session, newest first. */
+  tasks: BackgroundTask[];
 
   boot(): Promise<void>;
   refreshCli(): Promise<void>;
@@ -78,6 +82,10 @@ export interface AbacusState {
   /** Workspace files for `@` completion; empty when the app server cannot search. */
   searchFiles(query: string): Promise<string[]>;
   compact(): Promise<void>;
+  stopTask(id: number): Promise<void>;
+  clearTasks(): Promise<void>;
+  /** A task and its transcript so far, or null when the app server no longer has it. */
+  readTask(id: number): Promise<{ task: BackgroundTask; items: Item[] } | null>;
   notify(message: string, tone?: Notice["tone"]): void;
   dismissNotice(id: number): void;
 }

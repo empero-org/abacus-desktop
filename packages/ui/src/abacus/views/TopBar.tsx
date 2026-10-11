@@ -3,7 +3,7 @@
 // toggle. On Windows and Linux the native caption buttons overlay its right end.
 
 import { useEffect, useRef, useState } from "react";
-import { FileDiffIcon, PanelLeftIcon, SquareTerminalIcon } from "lucide-react";
+import { BotIcon, FileDiffIcon, PanelLeftIcon, SquareTerminalIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import { useAbacus } from "../context.js";
@@ -17,6 +17,9 @@ export function TopBar({
   onToggleChanges,
   terminalOpen,
   onToggleTerminal,
+  tasksOpen,
+  tasksRunning,
+  onToggleTasks,
 }: {
   platform: string | undefined;
   sidebarOpen: boolean;
@@ -26,6 +29,10 @@ export function TopBar({
   terminalOpen: boolean;
   /** Absent when there is no project to open a terminal in. */
   onToggleTerminal?: () => void;
+  tasksOpen: boolean;
+  tasksRunning: number;
+  /** Absent until the agent has started any background work. */
+  onToggleTasks?: () => void;
 }) {
   const thread = useAbacus((state) => state.thread);
   const ready = useAbacus((state) => state.phase === "ready" && state.view === "chat");
@@ -63,6 +70,33 @@ export function TopBar({
 
       {thread && ready ? (
         <ContextMeter tokensUsed={thread.tokensUsed} contextWindow={thread.contextWindow} />
+      ) : null}
+
+      {onToggleTasks ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onToggleTasks}
+              aria-pressed={tasksOpen}
+              className={cn(
+                "relative flex items-center gap-1.5 rounded-md p-1.5 text-foreground-subtle hover:bg-hover hover:text-foreground",
+                tasksOpen && "bg-selected text-foreground",
+              )}
+              aria-label="Background tasks"
+            >
+              <BotIcon className="size-4" />
+              {tasksRunning > 0 ? (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] leading-none text-primary-foreground">
+                  {tasksRunning}
+                </span>
+              ) : null}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            Background tasks{tasksRunning > 0 ? ` · ${tasksRunning} running` : ""}
+          </TooltipContent>
+        </Tooltip>
       ) : null}
 
       {onToggleTerminal ? (

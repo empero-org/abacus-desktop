@@ -87,6 +87,25 @@ export interface ModelEntry {
   selected: boolean;
 }
 
+/** A background worker (a subagent the agent started), as `tasks/list` reports it. */
+export interface BackgroundTask {
+  id: number;
+  name: string;
+  /** scout, drone, worker, resumed, or an authored spec's id. */
+  role: string;
+  model: string;
+  prompt: string;
+  state: "running" | "done" | "failed" | "stopped";
+  /** The latest thing it did or said, one line. */
+  activity: string;
+  /** The tool it is in right now. */
+  tool: string | null;
+  toolUses: number;
+  tokens: number;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
 // ---- server -> client notifications -------------------------------------
 
 export interface Notifications {
@@ -107,6 +126,7 @@ export interface Notifications {
   "item/agentMessage/delta": { threadId: string; turnId: string; itemId: string; delta: string };
   "item/reasoning/textDelta": { threadId: string; turnId: string; itemId: string; delta: string };
   warning: { message: string };
+  "tasks/updated": { tasks: BackgroundTask[] };
 }
 
 export type NotificationMethod = keyof Notifications;

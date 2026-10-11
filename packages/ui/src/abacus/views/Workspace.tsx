@@ -13,6 +13,7 @@ import { Crashed } from "./Crashed.js";
 import { Home } from "./Home.js";
 import { Settings } from "./Settings.js";
 import { Sidebar } from "./Sidebar.js";
+import { TasksPanel, useTasksPanel } from "./TasksPanel.js";
 import { TerminalPane } from "./TerminalPane.js";
 import { TopBar } from "./TopBar.js";
 
@@ -25,6 +26,10 @@ export function Workspace() {
   const platform = useAbacus((state) => state.appInfo?.platform);
   const changedFiles = useAbacus((state) => state.thread?.changedFiles.length ?? 0);
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
+  const hasTasks = useAbacus(
+    (state) => Boolean(state.capabilities.tasks) && state.tasks.length > 0,
+  );
+  const tasks = useTasksPanel();
   const [changesOpen, setChangesOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -76,7 +81,7 @@ export function Workspace() {
       {/* The start pages' glow spans the top bar too, so it has no seam. */}
       <div
         className={cn(
-          "flex min-w-0 flex-1 flex-col",
+          "relative flex min-w-0 flex-1 flex-col",
           view === "chat" &&
             (phase === "welcome" || (phase === "ready" && emptyThread)) &&
             "abacus-glow",
@@ -90,7 +95,17 @@ export function Workspace() {
           onToggleChanges={() => setChangesOpen((open) => !open)}
           terminalOpen={terminalOpen}
           onToggleTerminal={terminalAvailable ? toggleTerminal : undefined}
+          tasksOpen={tasks.open}
+          tasksRunning={tasks.running}
+          onToggleTasks={hasTasks || tasks.open ? () => tasks.setOpen(!tasks.open) : undefined}
         />
+        {tasks.open && phase === "ready" ? (
+          <TasksPanel
+            expanded={tasks.expanded}
+            onExpandedChange={tasks.setExpanded}
+            onClose={() => tasks.setOpen(false)}
+          />
+        ) : null}
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">
             <main className={cn("flex min-h-0 min-w-0 flex-1 flex-col")}>

@@ -63,3 +63,34 @@ export function toolSubject(name: string, command: string | undefined): string {
   if (summary) return summary;
   return BUILT_IN[name] ? "" : name;
 }
+
+const ACTIVITY: Record<string, string> = {
+  run_command: "Running a command",
+  web_search: "Searching the web",
+  read_page: "Reading a web page",
+  read_file: "Reading files",
+  read_files: "Reading files",
+  list_files: "Looking through files",
+  glob: "Looking through files",
+  grep: "Searching the code",
+  edit_file: "Editing files",
+  write_file: "Editing files",
+  append_file: "Editing files",
+  apply_patch: "Editing files",
+  delete_file: "Editing files",
+  move_file: "Editing files",
+  create_directory: "Editing files",
+  git_commit: "Committing",
+  spawn_subagents: "Starting subagents",
+  ask_user: "Asking a question",
+  mode_set: "Switching mode",
+  tool_search: "Looking up tools",
+};
+
+/** What a worker is doing, in words: the tool it is in, or thinking between tools. */
+export function toolActivity(tool: string | null): string {
+  if (!tool) return "Thinking";
+  if (ACTIVITY[tool]) return ACTIVITY[tool];
+  if (tool.startsWith("git_")) return "Checking git";
+  return `Using ${tool}`;
+}

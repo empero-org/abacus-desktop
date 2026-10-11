@@ -41,3 +41,19 @@ export function contextShare(tokensUsed: number, contextWindow: number | null): 
   if (!contextWindow || contextWindow <= 0) return null;
   return Math.min(100, Math.round((tokensUsed / contextWindow) * 100));
 }
+
+/** A duration as "42s", "7m 09s" or "1h 05m". */
+export function elapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+/** 950 -> "950", 196_800 -> "196.8k", 2_400_000 -> "2.4M". */
+export function tokenCount(value: number): string {
+  if (value < 1000) return String(value);
+  if (value < 1_000_000) return `${(value / 1000).toFixed(1)}k`;
+  return `${(value / 1_000_000).toFixed(1)}M`;
+}

@@ -9,8 +9,10 @@ import { create } from "zustand";
 import type { AbacusBridge, ServerMessage } from "./bridge.js";
 import {
   classifyRequest,
+  type BackgroundTask,
   type ConfigValueResult,
   type InitializeResult,
+  type Item,
   type ModelEntry,
   type ThreadSnapshot,
   type ThreadSummary,
@@ -88,6 +90,10 @@ export function createAbacusStore(bridge: AbacusBridge) {
         void get().refreshProjects();
         return;
       }
+      if (message.method === "tasks/updated") {
+        set({ tasks: (message.params as { tasks: BackgroundTask[] }).tasks });
+        return;
+      }
       const thread = get().thread;
       if (thread) set({ thread: applyNotification(thread, message.method, message.params) });
       if (message.method === "turn/completed" || message.method === "thread/name/updated") {
@@ -114,6 +120,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       drafts: {},
       attachments: {},
       commands: mergeCommands([]),
+      tasks: [],
 
       async boot() {
         const [appInfo, recent, launch] = await Promise.all([
@@ -139,7 +146,14 @@ export function createAbacusStore(bridge: AbacusBridge) {
       },
 
       async openWorkspace(path) {
-        set({ phase: "connecting", crash: null, thread: null, threads: [], view: "chat" });
+        set({
+          phase: "connecting",
+          crash: null,
+          thread: null,
+          threads: [],
+          tasks: [],
+          view: "chat",
+        });
         try {
           const workspace = await bridge.openWorkspace(path);
           const init = await bridge.request<InitializeResult>("initialize", {
@@ -157,6 +171,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
             refreshModels(),
             get().refreshProjects(),
             refreshCommands(),
+            refreshTasks(),
           ]);
         } catch (error) {
           set({ phase: "welcome", recent: await bridge.recentWorkspaces() });
@@ -383,6 +398,22 @@ export function createAbacusStore(bridge: AbacusBridge) {
         }
       },
 
+      stopTask: (id) => guard(async () => void (await bridge.request("task/stop", { id }))),
+
+      clearTasks: () =>
+        guard(async () => {
+          const { tasks } = await bridge.request<{ tasks: BackgroundTask[] }>("tasks/clear");
+          set({ tasks });
+        }),
+
+      async readTask(id) {
+        try {
+          return await bridge.request<{ task: BackgroundTask; items: Item[] }>("task/read", { id });
+        } catch {
+          return null;
+        }
+      },
+
       compact: () =>
         guard(async () => {
           if (!get().capabilities.compact) {
@@ -407,6 +438,16 @@ export function createAbacusStore(bridge: AbacusBridge) {
         set({ notices: get().notices.filter((notice) => notice.id !== id) });
       },
     };
+
+    async function refreshTasks() {
+      if (!get().capabilities.tasks) return set({ tasks: [] });
+      try {
+        const { tasks } = await bridge.request<{ tasks: BackgroundTask[] }>("tasks/list");
+        set({ tasks });
+      } catch {
+        set({ tasks: [] });
+      }
+    }
 
     async function refreshCommands() {
       if (!get().capabilities.commands) return set({ commands: mergeCommands([]) });
