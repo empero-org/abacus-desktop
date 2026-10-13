@@ -21,6 +21,8 @@ import { AppServer } from "./appServer.js";
 import { workspaceFromArgv } from "./argv.js";
 import { detectCli, resolveCli } from "./cli.js";
 import { listSessions, mergeProjects } from "./projects.js";
+import { Browser } from "./browser.js";
+import { BROWSER_TOOLS, isBrowserTool, runBrowserTool } from "./browserTools.js";
 import { RecentWorkspaces } from "./recent.js";
 import { Terminals } from "./terminal.js";
 import { createWindow, isExternalUrl, rendererPaths } from "./window.js";
@@ -29,6 +31,36 @@ const OUT_DIR = join(__dirname, "..");
 const DEV_SERVER_URL = process.env.ABACUS_DESKTOP_DEV_URL;
 
 const sessions = new Map<number, AppServer>();
+/** Each window's browser, made when first used. */
+const browsers = new Map<number, Browser>();
+
+function browserFor(contents: WebContents): Browser {
+  let browser = browsers.get(contents.id);
+  if (!browser) {
+    const window = BrowserWindow.fromWebContents(contents);
+    if (!window) throw new Error("no window for this browser");
+    browser = new Browser(window, (state) => {
+      if (!contents.isDestroyed()) contents.send("browser:state", state);
+    });
+    browsers.set(contents.id, browser);
+  }
+  return browser;
+}
+
+/** Ports dev servers usually listen on; the first that answers is the app to preview. */
+const DEV_PORTS = [5173, 3000, 3001, 8080, 8000, 4321, 4200, 5000, 8888, 4173, 5174];
+
+async function detectDevServer(): Promise<string | null> {
+  const answers = await Promise.all(
+    DEV_PORTS.map((port) =>
+      fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(600) })
+        .then(() => `http://localhost:${port}/`)
+        .catch(() => null),
+    ),
+  );
+  return answers.find(Boolean) ?? null;
+}
+
 /** The project each window has open; outlives an app server that crashed. */
 const windowWorkspaces = new Map<number, string>();
 let recent: RecentWorkspaces;
@@ -65,6 +97,8 @@ function openWindow(workspace?: string): BrowserWindow {
   window.on("closed", () => {
     stopSession(id);
     closeTerminals(id);
+    browsers.get(id)?.destroy();
+    browsers.delete(id);
     windowWorkspaces.delete(id);
     launchWorkspaces.delete(id);
   });
@@ -104,7 +138,23 @@ async function openWorkspace(event: IpcMainInvokeEvent, path: unknown): Promise<
 
   const server = new AppServer(bin, path);
   const contents = event.sender;
-  server.on("frame", (frame) => send(contents, frame));
+  server.on("frame", (frame) => {
+    // The agent driving the browser: answered here, where the browser is.
+    if (frame.kind === "request" && frame.method === "tool/call") {
+      const { name, arguments: args } = (frame.params ?? {}) as {
+        name?: string;
+        arguments?: Record<string, unknown>;
+      };
+      if (isBrowserTool(name)) {
+        if (!contents.isDestroyed()) contents.send("browser:agent");
+        void runBrowserTool(browserFor(contents), name!, args ?? {}).then((answer) => {
+          if (server.running) server.respond(frame.id, answer);
+        });
+        return;
+      }
+    }
+    send(contents, frame);
+  });
   server.on("exit", (code, tail) => {
     if (sessions.get(contents.id) === server) sessions.delete(contents.id);
     send(contents, { kind: "exit", code, tail });
@@ -176,9 +226,75 @@ function registerIpc(): void {
     openWindow(typeof path === "string" ? path : undefined);
   });
 
-  ipcMain.handle("abacus:request", (event, method: unknown, params: unknown) => {
+  ipcMain.handle("abacus:request", async (event, method: unknown, params: unknown) => {
     if (typeof method !== "string") throw new Error("method must be a string");
-    return sessionFor(event).request(method, params ?? {});
+    const session = sessionFor(event);
+    const result = await session.request(method, params ?? {});
+    // Lend the agent the browser, where the app server takes tools from us.
+    if (
+      method === "initialize" &&
+      (result as { capabilities?: Record<string, boolean> })?.capabilities?.clientTools
+    ) {
+      await session.request("tools/register", { tools: BROWSER_TOOLS }).catch(() => {});
+    }
+    return result;
+  });
+
+  ipcMain.handle("browser:state", (event) => browserFor(event.sender).state());
+  ipcMain.handle("browser:open", (event, url: unknown) =>
+    browserFor(event.sender).open(typeof url === "string" ? url : undefined),
+  );
+  ipcMain.handle("browser:detect", () => detectDevServer());
+  const tabAction =
+    (act: (browser: Browser, id: number, ...rest: unknown[]) => void) =>
+    (event: IpcMainEvent, id: unknown, ...rest: unknown[]) => {
+      if (typeof id === "number") act(browserFor(event.sender), id, ...rest);
+    };
+  ipcMain.on(
+    "browser:navigate",
+    tabAction((browser, id, url) => browser.navigate(id, String(url ?? ""))),
+  );
+  ipcMain.on(
+    "browser:back",
+    tabAction((browser, id) => browser.back(id)),
+  );
+  ipcMain.on(
+    "browser:forward",
+    tabAction((browser, id) => browser.forward(id)),
+  );
+  ipcMain.on(
+    "browser:reload",
+    tabAction((browser, id) => browser.reload(id)),
+  );
+  ipcMain.on(
+    "browser:stop",
+    tabAction((browser, id) => browser.stop(id)),
+  );
+  ipcMain.on(
+    "browser:select",
+    tabAction((browser, id) => browser.select(id)),
+  );
+  ipcMain.on(
+    "browser:close",
+    tabAction((browser, id) => browser.close(id)),
+  );
+  ipcMain.on("browser:bounds", (event, bounds: unknown) => {
+    const rect = bounds as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | null;
+    const valid =
+      rect &&
+      [rect.x, rect.y, rect.width, rect.height].every(
+        (value) => typeof value === "number" && Number.isFinite(value),
+      );
+    browserFor(event.sender).setBounds(
+      valid
+        ? {
+            x: Math.round(rect.x as number),
+            y: Math.round(rect.y as number),
+            width: Math.max(0, Math.round(rect.width as number)),
+            height: Math.max(0, Math.round(rect.height as number)),
+          }
+        : null,
+    );
   });
   ipcMain.handle("abacus:respond", (event, id: unknown, result: unknown) => {
     if (typeof id !== "string" && typeof id !== "number")

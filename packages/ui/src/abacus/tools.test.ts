@@ -7,6 +7,7 @@ describe("toolVerb", () => {
     expect(toolVerb("read_file", "functionCall", "completed")).toBe("Read");
     expect(toolVerb("run_command", "commandExecution", "awaitingApproval")).toBe("Wants to run");
     expect(toolVerb("edit_file", "fileChange", "aborted")).toBe("Stopped: edit");
+    expect(toolVerb("browser_type", "functionCall", "awaitingApproval")).toBe("Wants to type into");
   });
 
   it("falls back to the item type for tools it does not know", () => {

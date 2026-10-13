@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
+import { BrowserPane, useBrowserPane } from "./BrowserPane.js";
 import { ChangesPane } from "./ChangesPane.js";
 import { Composer } from "./Composer.js";
 import { Conversation } from "./Conversation.js";
@@ -30,6 +31,7 @@ export function Workspace() {
     (state) => Boolean(state.capabilities.tasks) && state.tasks.length > 0,
   );
   const tasks = useTasksPanel();
+  const browser = useBrowserPane();
   const [changesOpen, setChangesOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -98,6 +100,8 @@ export function Workspace() {
           tasksOpen={tasks.open}
           tasksRunning={tasks.running}
           onToggleTasks={hasTasks || tasks.open ? () => tasks.setOpen(!tasks.open) : undefined}
+          browserOpen={browser.open}
+          onToggleBrowser={phase === "ready" ? () => browser.setOpen(!browser.open) : undefined}
         />
         {tasks.open && phase === "ready" ? (
           <TasksPanel
@@ -134,6 +138,14 @@ export function Workspace() {
           </div>
           {changesOpen && phase === "ready" && view === "chat" ? (
             <ChangesPane onClose={() => setChangesOpen(false)} />
+          ) : null}
+          {browser.open && phase === "ready" && view === "chat" ? (
+            <BrowserPane
+              expanded={browser.expanded}
+              covered={tasks.open}
+              onExpandedChange={browser.setExpanded}
+              onClose={() => browser.setOpen(false)}
+            />
           ) : null}
         </div>
       </div>

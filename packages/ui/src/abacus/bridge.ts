@@ -53,6 +53,43 @@ export interface Project {
   activeAt: string;
 }
 
+/** The window's browser, as its pane shows it. */
+export interface BrowserTab {
+  id: number;
+  url: string;
+  title: string;
+  loading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+
+export interface BrowserState {
+  tabs: BrowserTab[];
+  active: number | null;
+  /** The agent is driving the browser right now. */
+  agent: boolean;
+}
+
+export interface BrowserBridge {
+  state(): Promise<BrowserState>;
+  /** Open a tab, at `url` when given; resolves to its id. */
+  open(url?: string): Promise<number>;
+  /** A dev server listening on a usual localhost port, to preview; null when none answers. */
+  detectDevServer(): Promise<string | null>;
+  navigate(id: number, url: string): void;
+  back(id: number): void;
+  forward(id: number): void;
+  reload(id: number): void;
+  stop(id: number): void;
+  select(id: number): void;
+  close(id: number): void;
+  /** Where the page goes, in window coordinates; null hides it. */
+  setBounds(bounds: { x: number; y: number; width: number; height: number } | null): void;
+  onState(listener: (state: BrowserState) => void): () => void;
+  /** The agent started using the browser. */
+  onAgent(listener: () => void): () => void;
+}
+
 /** Output from, or the end of, a terminal the window opened. */
 export type TerminalEvent =
   | { kind: "data"; id: number; data: string }
@@ -98,6 +135,8 @@ export interface AbacusBridge {
   closeTerminal(id: number): void;
   /** Subscribe to every terminal of this window; returns the unsubscribe function. */
   onTerminal(listener: (event: TerminalEvent) => void): () => void;
+
+  browser: BrowserBridge;
 
   /** Where a dropped or picked file lives on disk; null for one with no path (pasted from a browser). */
   pathForFile(file: File): string | null;

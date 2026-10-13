@@ -3,7 +3,7 @@
 // toggle. On Windows and Linux the native caption buttons overlay its right end.
 
 import { useEffect, useRef, useState } from "react";
-import { BotIcon, FileDiffIcon, PanelLeftIcon, SquareTerminalIcon } from "lucide-react";
+import { BotIcon, FileDiffIcon, GlobeIcon, PanelLeftIcon, SquareTerminalIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import { useAbacus } from "../context.js";
@@ -20,6 +20,8 @@ export function TopBar({
   tasksOpen,
   tasksRunning,
   onToggleTasks,
+  browserOpen,
+  onToggleBrowser,
 }: {
   platform: string | undefined;
   sidebarOpen: boolean;
@@ -33,6 +35,9 @@ export function TopBar({
   tasksRunning: number;
   /** Absent until the agent has started any background work. */
   onToggleTasks?: () => void;
+  browserOpen: boolean;
+  /** Absent without an open project. */
+  onToggleBrowser?: () => void;
 }) {
   const thread = useAbacus((state) => state.thread);
   const ready = useAbacus((state) => state.phase === "ready" && state.view === "chat");
@@ -96,6 +101,26 @@ export function TopBar({
           <TooltipContent side="bottom">
             Background tasks{tasksRunning > 0 ? ` · ${tasksRunning} running` : ""}
           </TooltipContent>
+        </Tooltip>
+      ) : null}
+
+      {onToggleBrowser ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onToggleBrowser}
+              aria-pressed={browserOpen}
+              className={cn(
+                "rounded-md p-1.5 text-foreground-subtle hover:bg-hover hover:text-foreground",
+                browserOpen && "bg-selected text-foreground",
+              )}
+              aria-label={browserOpen ? "Hide browser" : "Show browser"}
+            >
+              <GlobeIcon className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{browserOpen ? "Hide browser" : "Browser"}</TooltipContent>
         </Tooltip>
       ) : null}
 

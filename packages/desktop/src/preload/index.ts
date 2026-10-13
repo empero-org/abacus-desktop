@@ -2,7 +2,7 @@
 // main process. The renderer never sees Node, Electron, or the child process.
 
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
-import type { AbacusBridge, ServerMessage, TerminalEvent } from "@abacus/ui/bridge";
+import type { AbacusBridge, BrowserState, ServerMessage, TerminalEvent } from "@abacus/ui/bridge";
 
 const bridge: AbacusBridge = {
   appInfo: () => ipcRenderer.invoke("app:info"),
@@ -34,6 +34,30 @@ const bridge: AbacusBridge = {
     const handler = (_event: IpcRendererEvent, event: TerminalEvent) => listener(event);
     ipcRenderer.on("terminal:event", handler);
     return () => ipcRenderer.removeListener("terminal:event", handler);
+  },
+
+  browser: {
+    state: () => ipcRenderer.invoke("browser:state"),
+    open: (url) => ipcRenderer.invoke("browser:open", url),
+    detectDevServer: () => ipcRenderer.invoke("browser:detect"),
+    navigate: (id, url) => ipcRenderer.send("browser:navigate", id, url),
+    back: (id) => ipcRenderer.send("browser:back", id),
+    forward: (id) => ipcRenderer.send("browser:forward", id),
+    reload: (id) => ipcRenderer.send("browser:reload", id),
+    stop: (id) => ipcRenderer.send("browser:stop", id),
+    select: (id) => ipcRenderer.send("browser:select", id),
+    close: (id) => ipcRenderer.send("browser:close", id),
+    setBounds: (bounds) => ipcRenderer.send("browser:bounds", bounds),
+    onState: (listener) => {
+      const handler = (_event: IpcRendererEvent, state: BrowserState) => listener(state);
+      ipcRenderer.on("browser:state", handler);
+      return () => ipcRenderer.removeListener("browser:state", handler);
+    },
+    onAgent: (listener) => {
+      const handler = () => listener();
+      ipcRenderer.on("browser:agent", handler);
+      return () => ipcRenderer.removeListener("browser:agent", handler);
+    },
   },
 
   // Electron no longer puts the path on File; only the preload can ask for it.

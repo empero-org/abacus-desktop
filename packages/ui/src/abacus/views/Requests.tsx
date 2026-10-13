@@ -2,7 +2,7 @@
 // question. One at a time, oldest first; the rest wait their turn.
 
 import { useState, type ReactNode } from "react";
-import { CircleHelpIcon, FilePenIcon, SquareTerminalIcon } from "lucide-react";
+import { CircleHelpIcon, FilePenIcon, GlobeIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
@@ -55,7 +55,8 @@ function ApprovalCard({
   const answer = useAbacus((state) => state.answerApproval);
   const [busy, setBusy] = useState(false);
   const command = method === "item/commandExecution/requestApproval";
-  const Icon = command ? SquareTerminalIcon : FilePenIcon;
+  const browsing = params.tool.startsWith("browser_");
+  const Icon = command ? SquareTerminalIcon : browsing ? GlobeIcon : FilePenIcon;
   const decide = (decision: Parameters<typeof answer>[1]) => {
     setBusy(true);
     void answer(id, decision).finally(() => setBusy(false));
@@ -65,7 +66,11 @@ function ApprovalCard({
     <Card tone="ask">
       <div className="flex items-center gap-2 text-ui-base font-medium">
         <Icon className="size-4 text-warning" />
-        {command ? "Run this command?" : "Allow this change?"}
+        {command
+          ? "Run this command?"
+          : browsing
+            ? "Let abacus do this in the browser?"
+            : "Allow this change?"}
         <span className="ml-auto font-mono text-ui-sm font-normal text-foreground-subtlest">
           {params.tool}
         </span>

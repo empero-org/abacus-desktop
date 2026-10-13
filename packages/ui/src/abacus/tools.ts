@@ -36,6 +36,15 @@ const BUILT_IN: Record<string, Verbs> = {
   message_subagent: ["Messaging", "Messaged", "message"],
   mode_set: ["Switching mode", "Switched mode", "switch mode"],
   ask_user: ["Asking", "Asked", "ask"],
+  // The desktop's own browser tools.
+  browser_navigate: ["Opening", "Opened", "open"],
+  browser_read_page: ["Reading the page", "Read the page", "read the page"],
+  browser_click: ["Clicking", "Clicked", "click"],
+  browser_type: ["Typing into", "Typed into", "type into"],
+  browser_press_key: ["Pressing", "Pressed", "press"],
+  browser_scroll: ["Scrolling", "Scrolled", "scroll"],
+  browser_back: ["Going back", "Went back", "go back"],
+  browser_screenshot: ["Taking a screenshot", "Took a screenshot", "take a screenshot"],
 };
 
 const BY_TYPE: Record<ToolItemType, Verbs> = {
@@ -93,5 +102,6 @@ export function toolActivity(tool: string | null): string {
   if (!tool) return "Thinking";
   if (ACTIVITY[tool]) return ACTIVITY[tool];
   if (tool.startsWith("git_")) return "Checking git";
+  if (tool.startsWith("browser_")) return "Using the browser";
   return `Using ${tool}`;
 }

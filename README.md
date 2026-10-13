@@ -31,6 +31,12 @@ change made in the app is the change the terminal UI would make.
 - **Changes.** The diff of the working tree after a turn.
 - **Terminal.** Shells in the project, in tabs, under the conversation
   (Ctrl+`).
+- **Browser.** A browser pane beside the conversation, with tabs and an
+  address bar, that finds your dev server. abacus can use it too: open pages,
+  read them, click, type and take screenshots while you watch, asking before
+  it clicks or types. Pages run in their own session, apart from the app.
+- **Background tasks.** The subagents abacus started, what each is doing, and
+  its transcript, in a panel you can expand or stop them from.
 - **Settings.** Theme, model, reasoning effort, mode, approvals, and your sync
   status.
 
@@ -45,7 +51,9 @@ curl -fsSL https://abacus.empero.org/install.sh | sh
 On Windows, download it from the
 [releases](https://github.com/empero-org/abacus/releases/latest). The app looks
 for `abacus` in `~/.local/bin`, `~/.cargo/bin`, the usual system locations and
-your `PATH`; `ABACUS_BIN` points it at a specific binary.
+your `PATH`; `ABACUS_BIN` points it at a specific binary. The background tasks
+panel and letting abacus use the browser need a CLI newer than 0.6.6; with an
+older one the app works without them.
 
 ## Development
 
@@ -64,7 +72,7 @@ pnpm package                # installers for this platform, in packages/desktop/
 The repository has two packages:
 
 - `packages/desktop`: the Electron main process (one `abacus app-server` per
-  window, the terminals) and the preload bridge.
+  window, the terminals, the browser) and the preload bridge.
 - `packages/ui`: the window itself, in React. `src/abacus` is the app;
   `src/components` holds the UI primitives it is built from.
 
