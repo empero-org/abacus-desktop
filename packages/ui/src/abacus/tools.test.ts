@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toolSubject, toolVerb } from "./tools.js";
+import { standsAlone, toolSubject, toolVerb } from "./tools.js";
 
 describe("toolVerb", () => {
   it("speaks a built-in tool's own verb at each status", () => {
@@ -24,5 +24,10 @@ describe("toolSubject", () => {
   it("names an unknown tool that has no summary, and leaves a known one bare", () => {
     expect(toolSubject("mcp__linear__create_issue", undefined)).toBe("mcp__linear__create_issue");
     expect(toolSubject("git_status", "")).toBe("");
+  });
+
+  it("leaves the name off a tool whose verb says it all", () => {
+    expect(standsAlone("browser_screenshot")).toBe(true);
+    expect(standsAlone("git_status")).toBe(false);
   });
 });

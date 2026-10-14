@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
 import type { Item, ToolItemType, ToolStatus } from "../protocol.js";
-import { toolSubject, toolVerb } from "../tools.js";
+import { standsAlone, toolSubject, toolVerb } from "../tools.js";
 import { Markdown } from "./Markdown.js";
 
 type ToolItem = Extract<Item, { status: ToolStatus }>;
@@ -187,14 +187,16 @@ function ToolCall({ item }: { item: ToolItem }) {
         <Icon className="size-4 shrink-0 text-foreground-subtlest" />
         <span className="shrink-0">{toolVerb(item.name, item.type, item.status)}</span>
         {/* Resumed history carries no call summary; the tool's name stands in. */}
-        <code
-          className={cn(
-            "min-w-0 truncate font-mono text-ui-sm",
-            subject ? "text-foreground" : "text-foreground-subtlest",
-          )}
-        >
-          {subject || item.name}
-        </code>
+        {subject || !standsAlone(item.name) ? (
+          <code
+            className={cn(
+              "min-w-0 truncate font-mono text-ui-sm",
+              subject ? "text-foreground" : "text-foreground-subtlest",
+            )}
+          >
+            {subject || item.name}
+          </code>
+        ) : null}
         <StatusMark status={item.status} waiting={Boolean(pending)} />
         {output ? (
           <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-transform group-hover/tool:opacity-100 group-data-[state=open]/tool:rotate-90 group-data-[state=open]/tool:opacity-100" />

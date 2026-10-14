@@ -67,6 +67,13 @@ export function toolVerb(name: string, type: ToolItemType, status: ToolStatus): 
   }
 }
 
+/** Tools whose verb says it all: "Read the page", "Took a screenshot", "Went back". */
+const STANDS_ALONE = new Set(["browser_read_page", "browser_screenshot", "browser_back"]);
+
+export function standsAlone(name: string): boolean {
+  return STANDS_ALONE.has(name);
+}
+
 /** What the call was about: its summary, or the tool's name for an unknown tool without one. */
 export function toolSubject(name: string, command: string | undefined): string {
   const summary = command?.trim();
