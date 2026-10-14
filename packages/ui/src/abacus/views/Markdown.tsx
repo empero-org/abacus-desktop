@@ -10,8 +10,10 @@ import { defaultRemarkPlugins, Streamdown } from "streamdown";
 import type { Pluggable } from "unified";
 import { cn } from "@/components/lib/utils.js";
 
-// `$x$` inline math is common in answers; the plugin only does `$$` by default.
-const plugins = { code, math: createMathPlugin({ singleDollarTextMath: true }), mermaid };
+// Math only between `$$`: a coding agent writes "$0 and $8/month" and "$HOME
+// or $PATH" far more often than `$x$`, and single dollars turned those into
+// formulas.
+const plugins = { code, math: createMathPlugin({ singleDollarTextMath: false }), mermaid };
 
 // GFM's single-tilde strikethrough turns "~5 min to ~10 min" into struck text.
 // Only `~~text~~` strikes.
