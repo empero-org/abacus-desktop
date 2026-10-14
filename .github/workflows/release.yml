@@ -41,6 +41,13 @@ jobs:
       - run: pnpm build
       - run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.args }}
         working-directory: packages/desktop
+      - name: Check the macOS signature
+        if: runner.os == 'macOS'
+        working-directory: packages/desktop/dist
+        run: |
+          app=$(find . -maxdepth 2 -name Abacus.app | head -n 1)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -E "^(Identifier|Signature|CodeDirectory)"
       - uses: actions/upload-artifact@v4
         with:
           name: abacus-desktop-${{ matrix.os }}

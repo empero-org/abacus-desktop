@@ -10,7 +10,7 @@ import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
 /** The oldest CLI that speaks the app-server protocol this window renders. */
-export const MINIMUM_CLI_VERSION = "0.6.6";
+export const MINIMUM_CLI_VERSION = "0.7.0";
 
 const EXE = process.platform === "win32" ? ".exe" : "";
 
@@ -25,9 +25,9 @@ export function candidates(env: NodeJS.ProcessEnv = process.env, home = homedir(
     join(home, ".local", "bin", `abacus${EXE}`),
     join(home, ".cargo", "bin", `abacus${EXE}`),
   );
-  if (process.platform === "win32" && env.LOCALAPPDATA) {
-    list.push(join(env.LOCALAPPDATA, "Programs", "abacus", "abacus.exe"));
-  } else {
+  // Not %LOCALAPPDATA%\Programs\abacus on Windows: that is where this app
+  // installs itself, as Abacus.exe, and Windows ignores the case.
+  if (process.platform !== "win32") {
     list.push("/usr/local/bin/abacus", "/opt/homebrew/bin/abacus", "/usr/bin/abacus");
   }
   // A GUI launched from a desktop environment often gets a thinner PATH than

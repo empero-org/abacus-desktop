@@ -7,9 +7,11 @@ import { useAbacus } from "../context.js";
 import { relativeTime } from "../format.js";
 import { BrandMark } from "./BrandMark.js";
 
-const INSTALL_COMMAND = "curl -fsSL https://abacus.empero.org/install.sh | sh";
-/** The installer is a POSIX script; on Windows the release page has the binary. */
-const RELEASES_URL = "https://github.com/empero-org/abacus/releases/latest";
+// `--cli`: the app is already here, so the installer need not ask about it.
+const INSTALL_COMMAND = "curl -fsSL https://abacus.empero.org/install.sh | sh -s -- --cli";
+/** For PowerShell; the installer reads the choice from the environment there. */
+const WINDOWS_INSTALL_COMMAND =
+  '$env:ABACUS_INSTALL="cli"; irm https://abacus.empero.org/install.ps1 | iex';
 
 export function Welcome() {
   const cli = useAbacus((state) => state.cli);
@@ -123,19 +125,12 @@ function CliNotice() {
             : "The desktop app drives the abacus command-line agent. Install it, then check again."}
         </span>
       </div>
-      {windows ? (
-        <button
-          type="button"
-          onClick={() => void window.abacus?.openExternal(RELEASES_URL)}
-          className="self-start text-ui-base text-brand hover:underline"
-        >
-          Download abacus for Windows
-        </button>
-      ) : (
-        <code className="block overflow-x-auto rounded-md bg-terminal-bg px-3 py-2 font-mono text-ui-sm text-terminal-fg">
-          {INSTALL_COMMAND}
-        </code>
-      )}
+      <span className="text-ui-sm text-foreground-subtle">
+        {windows ? "In PowerShell:" : "In a terminal:"}
+      </span>
+      <code className="-mt-2 block overflow-x-auto rounded-md bg-terminal-bg px-3 py-2 font-mono text-ui-sm text-terminal-fg select-text">
+        {windows ? WINDOWS_INSTALL_COMMAND : INSTALL_COMMAND}
+      </code>
       <div>
         <Button variant="outline" size="sm" onClick={() => void refreshCli()} className="gap-2">
           <RefreshCwIcon className="size-3.5" />

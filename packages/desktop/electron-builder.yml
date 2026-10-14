@@ -18,11 +18,18 @@ files:
 asarUnpack:
   - "**/node_modules/@lydell/node-pty*/**"
 
-artifactName: Abacus-${version}-${os}-${arch}.${ext}
+# No version in the names, so the newest release's files have fixed URLs
+# (releases/latest/download/Abacus-mac-arm64.zip) for the installers and the
+# website. The release itself carries the version.
+artifactName: Abacus-${os}-${arch}.${ext}
 
 mac:
   icon: build/icon.png
   category: public.app-category.developer-tools
+  # Ad-hoc signed until there is a Developer ID: a valid signature, so macOS
+  # runs it when the installer puts it in place, and a browser download gets
+  # "unverified developer" (System Settings → Open Anyway), not "damaged".
+  identity: "-"
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
@@ -54,5 +61,9 @@ linux:
     - AppImage
     - deb
     - tar.gz
+
+deb:
+  # The package name would otherwise come from the product name, "Abacus".
+  packageName: abacus-desktop
 
 publish: null

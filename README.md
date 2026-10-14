@@ -40,20 +40,41 @@ change made in the app is the change the terminal UI would make.
 - **Settings.** Theme, model, reasoning effort, mode, approvals, and your sync
   status.
 
-## Requirements
+## Install
 
-The app needs the abacus CLI, version 0.6.6 or newer:
+The Abacus installer sets up the abacus CLI and, when you choose it, this app.
+On macOS and Linux:
 
 ```sh
-curl -fsSL https://abacus.empero.org/install.sh | sh
+curl -fsSL https://abacus.empero.org/install.sh | sh -s -- --desktop
 ```
 
-On Windows, download it from the
-[releases](https://github.com/empero-org/abacus/releases/latest). The app looks
-for `abacus` in `~/.local/bin`, `~/.cargo/bin`, the usual system locations and
-your `PATH`; `ABACUS_BIN` points it at a specific binary. The background tasks
-panel and letting abacus use the browser need a CLI newer than 0.6.6; with an
-older one the app works without them.
+On Windows, in PowerShell:
+
+```powershell
+$env:ABACUS_INSTALL="desktop"; irm https://abacus.empero.org/install.ps1 | iex
+```
+
+`abacus update` updates both later. Or download the app from the
+[latest release](https://github.com/empero-org/abacus-desktop/releases/latest)
+and install the CLI with the same command, without `--desktop`:
+
+| System | File |
+| --- | --- |
+| macOS, Apple silicon | `Abacus-mac-arm64.dmg` |
+| macOS, Intel | `Abacus-mac-x64.dmg` |
+| Windows | `Abacus-win-x64.exe` |
+| Debian, Ubuntu | `Abacus-linux-amd64.deb` |
+| Other Linux | `Abacus-linux-x86_64.AppImage`, `Abacus-linux-x64.tar.gz` |
+
+The app is not notarized or code-signed yet. The installer sets it up without
+warnings; a downloaded copy needs System Settings → Privacy & Security → Open
+Anyway the first time on macOS, and More info → Run anyway if SmartScreen
+stops it on Windows.
+
+The app needs the abacus CLI 0.7.0 or newer. It looks for `abacus` in
+`~/.local/bin`, `~/.cargo/bin`, the usual system locations and your `PATH`;
+`ABACUS_BIN` points it at a specific binary.
 
 ## Development
 
