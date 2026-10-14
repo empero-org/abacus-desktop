@@ -18,6 +18,12 @@
   "dependencies": {
     "@lydell/node-pty": "1.2.0-beta.15"
   },
+  "optionalDependencies": {
+    "@lydell/node-pty-darwin-arm64": "1.2.0-beta.15",
+    "@lydell/node-pty-darwin-x64": "1.2.0-beta.15",
+    "@lydell/node-pty-linux-x64": "1.2.0-beta.15",
+    "@lydell/node-pty-win32-x64": "1.2.0-beta.15"
+  },
   "devDependencies": {
     "@abacus/ui": "workspace:*",
     "@tailwindcss/vite": "^4.2.2",

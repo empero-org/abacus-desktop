@@ -5,6 +5,7 @@
 import { build } from "esbuild";
 import { build as viteBuild } from "vite";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -35,6 +36,8 @@ async function main() {
   console.log("built out/main, out/preload, out/renderer");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run directly, not imported by dev.mjs. As a URL: on Windows the path has
+// backslashes and a drive letter, and `file://` + path never matches.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }

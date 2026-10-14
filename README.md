@@ -59,13 +59,13 @@ $env:ABACUS_INSTALL="desktop"; irm https://abacus.empero.org/install.ps1 | iex
 [latest release](https://github.com/empero-org/abacus-desktop/releases/latest)
 and install the CLI with the same command, without `--desktop`:
 
-| System | File |
-| --- | --- |
-| macOS, Apple silicon | `Abacus-mac-arm64.dmg` |
-| macOS, Intel | `Abacus-mac-x64.dmg` |
-| Windows | `Abacus-win-x64.exe` |
-| Debian, Ubuntu | `Abacus-linux-amd64.deb` |
-| Other Linux | `Abacus-linux-x86_64.AppImage`, `Abacus-linux-x64.tar.gz` |
+| System               | File                                                      |
+| -------------------- | --------------------------------------------------------- |
+| macOS, Apple silicon | `Abacus-mac-arm64.dmg`                                    |
+| macOS, Intel         | `Abacus-mac-x64.dmg`                                      |
+| Windows              | `Abacus-win-x64.exe`                                      |
+| Debian, Ubuntu       | `Abacus-linux-amd64.deb`                                  |
+| Other Linux          | `Abacus-linux-x86_64.AppImage`, `Abacus-linux-x64.tar.gz` |
 
 The app is not notarized or code-signed yet. The installer sets it up without
 warnings; a downloaded copy needs System Settings → Privacy & Security → Open
