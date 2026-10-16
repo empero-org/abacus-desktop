@@ -24,6 +24,9 @@ export interface ThreadView {
   autoApprove: boolean;
   reasoningEffort: ReasoningEffort | null;
   contextWindow: number | null;
+  /** How full the context is; null when the CLI does not say. */
+  contextTokens: number | null;
+  /** Every token the session has spent, which is not the context. */
   tokensUsed: number;
   usage: TokenUsage | null;
   items: Item[];
@@ -44,6 +47,7 @@ export function threadFromSnapshot(snapshot: ThreadSnapshot): ThreadView {
     autoApprove: snapshot.autoApprove,
     reasoningEffort: snapshot.reasoningEffort,
     contextWindow: snapshot.contextWindow,
+    contextTokens: snapshot.contextTokens ?? null,
     tokensUsed: snapshot.tokensUsed,
     usage: snapshot.usage ?? null,
     items: snapshot.items ?? [],
@@ -124,6 +128,7 @@ export function applyNotification(thread: ThreadView, method: string, params: un
       return {
         ...thread,
         tokensUsed: update.tokensUsed,
+        contextTokens: update.contextTokens ?? null,
         contextWindow: update.contextWindow,
         usage: update.usage,
       };

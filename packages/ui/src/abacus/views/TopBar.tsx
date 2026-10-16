@@ -7,7 +7,7 @@ import { BotIcon, FileDiffIcon, GlobeIcon, PanelLeftIcon, SquareTerminalIcon } f
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import { useAbacus } from "../context.js";
-import { compactNumber, contextShare } from "../format.js";
+import { ContextMeter } from "./ContextMeter.js";
 
 export function TopBar({
   platform,
@@ -74,7 +74,12 @@ export function TopBar({
       </div>
 
       {thread && ready ? (
-        <ContextMeter tokensUsed={thread.tokensUsed} contextWindow={thread.contextWindow} />
+        <ContextMeter
+          contextTokens={thread.contextTokens}
+          contextWindow={thread.contextWindow}
+          tokensUsed={thread.tokensUsed}
+          usage={thread.usage}
+        />
       ) : null}
 
       {onToggleTasks ? (
@@ -221,60 +226,5 @@ function ThreadTitle() {
       ) : null}
       <span className="truncate text-ui-base font-medium">{name || "New session"}</span>
     </button>
-  );
-}
-
-function ContextMeter({
-  tokensUsed,
-  contextWindow,
-}: {
-  tokensUsed: number;
-  contextWindow: number | null;
-}) {
-  const share = contextShare(tokensUsed, contextWindow);
-  if (tokensUsed === 0) return null;
-  const radius = 6;
-  const circumference = 2 * Math.PI * radius;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-ui-sm text-foreground-subtlest"
-          tabIndex={0}
-        >
-          {share !== null ? (
-            <svg viewBox="0 0 16 16" className="size-3.5 -rotate-90" aria-hidden>
-              <circle
-                cx="8"
-                cy="8"
-                r={radius}
-                fill="none"
-                strokeWidth="2"
-                className="stroke-border"
-              />
-              <circle
-                cx="8"
-                cy="8"
-                r={radius}
-                fill="none"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference * (1 - share / 100)}
-                className={cn("stroke-brand", share >= 85 && "stroke-warning")}
-              />
-            </svg>
-          ) : null}
-          <span className="font-mono">
-            {share !== null ? `${share}%` : compactNumber(tokensUsed)}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        {compactNumber(tokensUsed)} tokens
-        {contextWindow ? ` of ${compactNumber(contextWindow)} context` : ""}
-      </TooltipContent>
-    </Tooltip>
   );
 }

@@ -53,6 +53,8 @@ export interface ThreadSnapshot {
   reasoningEffort: ReasoningEffort | null;
   workspace: string;
   contextWindow: number | null;
+  /** How full the context is (CLI 0.7.1 and later). */
+  contextTokens?: number;
   tokensUsed: number;
   usage: TokenUsage;
   items: Item[];
@@ -115,6 +117,7 @@ export interface Notifications {
   "thread/tokenUsage/updated": {
     threadId: string;
     tokensUsed: number;
+    contextTokens?: number;
     contextWindow: number | null;
     usage: TokenUsage;
   };

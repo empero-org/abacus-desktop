@@ -37,9 +37,9 @@ export function compactNumber(value: number): string {
 }
 
 /** Share of the context window used, 0-100, or null when the window is unknown. */
-export function contextShare(tokensUsed: number, contextWindow: number | null): number | null {
+export function contextShare(contextTokens: number, contextWindow: number | null): number | null {
   if (!contextWindow || contextWindow <= 0) return null;
-  return Math.min(100, Math.round((tokensUsed / contextWindow) * 100));
+  return Math.min(100, Math.round((contextTokens / contextWindow) * 100));
 }
 
 /** A duration as "42s", "7m 09s" or "1h 05m". */

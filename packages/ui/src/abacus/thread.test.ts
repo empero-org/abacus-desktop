@@ -156,7 +156,7 @@ describe("applyNotification", () => {
     const thread = run(
       [
         "thread/tokenUsage/updated",
-        { threadId: "t1", tokensUsed: 15, contextWindow: 200_000, usage },
+        { threadId: "t1", tokensUsed: 15, contextTokens: 12, contextWindow: 200_000, usage },
       ],
       ["thread/mode/updated", { threadId: "t1", mode: "build" }],
       [
@@ -169,6 +169,7 @@ describe("applyNotification", () => {
       ],
     );
     expect(thread.tokensUsed).toBe(15);
+    expect(thread.contextTokens).toBe(12);
     expect(thread.contextWindow).toBe(200_000);
     expect(thread.mode).toBe("build");
     expect(thread.changedFiles[0]?.path).toBe("src/a.rs");
