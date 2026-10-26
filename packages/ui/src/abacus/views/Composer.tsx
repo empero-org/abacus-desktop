@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
@@ -294,8 +295,11 @@ function EffortMenu() {
           <span>{effort ? current.label : "Effort"}</span>
         </Pill>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-48">
-        <DropdownMenuLabel className="abacus-label">Reasoning effort</DropdownMenuLabel>
+      <DropdownMenuContent align="start" side="top" className="w-60">
+        <DropdownMenuLabel className="abacus-label flex items-center gap-3 whitespace-nowrap">
+          Reasoning effort
+          <DropdownMenuShortcut className="normal-case">Ctrl+T</DropdownMenuShortcut>
+        </DropdownMenuLabel>
         {EFFORTS.map((entry, index) => (
           <Fragment key={entry.label}>
             {index === 1 ? <DropdownMenuSeparator /> : null}

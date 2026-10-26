@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ReasoningEffort } from "./protocol.js";
 import type { AbacusState } from "./state.js";
-import { runWindowCommand } from "./windowCommands.js";
+import { nextEffort, runWindowCommand } from "./windowCommands.js";
 
 function fakeState() {
   return {
@@ -40,5 +41,23 @@ describe("window commands", () => {
     const state = fakeState();
     expect(await runWindowCommand(state, "review", "the parser")).toBe(false);
     expect(await runWindowCommand(state, "btw", "also tests")).toBe(false);
+  });
+});
+
+describe("Ctrl+T", () => {
+  it("steps default, low, medium, high and back to default", () => {
+    const seen: (ReasoningEffort | null)[] = [];
+    let effort: ReasoningEffort | null = null;
+    for (let press = 0; press < 4; press++) {
+      effort = nextEffort(effort);
+      seen.push(effort);
+    }
+    expect(seen).toEqual(["low", "medium", "high", null]);
+  });
+
+  it("brings a level off the ladder back onto it", () => {
+    expect(nextEffort("minimal")).toBe("low");
+    expect(nextEffort("xhigh")).toBe(null);
+    expect(nextEffort("max")).toBe(null);
   });
 });

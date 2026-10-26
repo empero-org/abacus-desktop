@@ -65,3 +65,22 @@ export async function runWindowCommand(
       return false;
   }
 }
+
+/**
+ * The effort Ctrl+T steps to: default, low, medium, high and back to default,
+ * as in the terminal. A level off that ladder (minimal, extra high, max) steps
+ * to the next rung.
+ */
+export function nextEffort(effort: ReasoningEffort | null): ReasoningEffort | null {
+  switch (effort) {
+    case null:
+    case "minimal":
+      return "low";
+    case "low":
+      return "medium";
+    case "medium":
+      return "high";
+    default:
+      return null;
+  }
+}

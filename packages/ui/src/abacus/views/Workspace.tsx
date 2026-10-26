@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
+import { nextEffort } from "../windowCommands.js";
 import { BrowserPane, useBrowserPane } from "./BrowserPane.js";
 import { ChangesPane } from "./ChangesPane.js";
 import { Composer } from "./Composer.js";
@@ -25,6 +26,9 @@ export function Workspace() {
     (state) => state.thread !== null && state.thread.items.length === 0 && !state.thread.turnId,
   );
   const platform = useAbacus((state) => state.appInfo?.platform);
+  const hasThread = useAbacus((state) => state.thread !== null);
+  const effort = useAbacus((state) => state.thread?.reasoningEffort ?? null);
+  const setReasoningEffort = useAbacus((state) => state.setReasoningEffort);
   const changedFiles = useAbacus((state) => state.thread?.changedFiles.length ?? 0);
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const hasTasks = useAbacus(
@@ -57,6 +61,21 @@ export function Workspace() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [terminalAvailable]);
+
+  // Ctrl+T steps the reasoning effort, as it does in the terminal app. Inside
+  // the terminal pane the key belongs to the shell.
+  useEffect(() => {
+    if (phase !== "ready" || !hasThread) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+      if (event.key.toLowerCase() !== "t") return;
+      if (event.target instanceof Element && event.target.closest(".xterm")) return;
+      event.preventDefault();
+      void setReasoningEffort(nextEffort(effort));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, hasThread, effort, setReasoningEffort]);
 
   // Leaving the project leaves its terminals; the next one starts new shells.
   useEffect(() => {
