@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip.js";
 import { AbacusStoreProvider, useAbacus } from "./context.js";
 import { createAbacusStore } from "./store.js";
 import { useColorScheme } from "./useColorScheme.js";
+import { useContentWidth } from "./useContentWidth.js";
 import { Notices } from "./views/Notices.js";
 import { Welcome } from "./views/Welcome.js";
 import { Workspace } from "./views/Workspace.js";
@@ -15,6 +16,7 @@ export function AbacusApp() {
   const bridge = typeof window === "undefined" ? undefined : window.abacus;
   const store = useMemo(() => (bridge ? createAbacusStore(bridge) : null), [bridge]);
   useColorScheme();
+  useContentWidth();
 
   if (!store) return <NoBridge />;
   return (

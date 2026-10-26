@@ -108,7 +108,7 @@ export function Composer() {
 
   return (
     <div className="shrink-0 px-6 pb-5">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+      <div className="mx-auto flex w-full max-w-(--content-width) flex-col gap-3">
         <Requests />
         <form
           onSubmit={(event) => {

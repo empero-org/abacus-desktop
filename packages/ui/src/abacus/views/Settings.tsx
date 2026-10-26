@@ -16,6 +16,11 @@ import { Switch } from "@/components/ui/switch.js";
 import { useAbacus } from "../context.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { chooseColorScheme, useColorSchemeChoice, type ColorScheme } from "../useColorScheme.js";
+import {
+  chooseContentWidth,
+  useContentWidthChoice,
+  type ContentWidth,
+} from "../useContentWidth.js";
 
 export function Settings() {
   const setView = useAbacus((state) => state.setView);
@@ -123,12 +128,23 @@ const SCHEMES: { value: ColorScheme; label: string; icon: typeof SunIcon }[] = [
   { value: "system", label: "System", icon: MonitorIcon },
 ];
 
+const WIDTHS: { value: ContentWidth; label: string }[] = [
+  { value: "default", label: "Default" },
+  { value: "wide", label: "Wide" },
+  { value: "wider", label: "Wider" },
+  { value: "full", label: "Full" },
+];
+
 function Appearance() {
   const scheme = useColorSchemeChoice();
+  const width = useContentWidthChoice();
   return (
     <Section title="Appearance">
       <Row label="Theme">
         <Segmented value={scheme} options={SCHEMES} onChange={chooseColorScheme} />
+      </Row>
+      <Row label="Content width" hint="How wide the conversation and composer grow.">
+        <Segmented value={width} options={WIDTHS} onChange={chooseContentWidth} />
       </Row>
     </Section>
   );

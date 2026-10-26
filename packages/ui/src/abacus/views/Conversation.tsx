@@ -31,7 +31,7 @@ export function Conversation() {
 
   return (
     <StickyConversation key={threadId} className="min-h-0 flex-1">
-      <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-6 pt-6 pb-10">
+      <ConversationContent className="mx-auto w-full max-w-(--content-width) gap-5 px-6 pt-6 pb-10">
         {items.map((item, index) => (
           <ItemView
             key={item.id}

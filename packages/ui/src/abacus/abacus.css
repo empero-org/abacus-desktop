@@ -172,6 +172,8 @@
 
 :root {
   --ui-font-size: 14px;
+  /* The conversation's column; Settings → Content width changes it. */
+  --content-width: 48rem;
   --app-chrome-height: 44px;
   --abacus-glow: rgba(123, 63, 228, 0.1);
 }
