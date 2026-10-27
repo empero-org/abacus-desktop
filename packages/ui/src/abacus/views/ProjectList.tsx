@@ -1,5 +1,6 @@
-// The sidebar's project tree: each project with its sessions, a menu per
-// project, and the projects that live on other devices.
+// The sidebar's project tree: each project with its sessions (forks nested
+// under the session they came from, see SessionTree), a menu per project, and
+// the projects that live on other devices.
 
 import { useEffect, useState } from "react";
 import {
@@ -19,18 +20,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
-import type { Project, ProjectSession } from "../bridge.js";
+import type { Project } from "../bridge.js";
 import { useAbacus } from "../context.js";
-import { relativeTime } from "../format.js";
+import { flat, type PlacedSession } from "../groups.js";
+import { SessionTree } from "./SessionTree.js";
 
 const SESSIONS_SHOWN = 5;
 
 export function ProjectGroup({
   project,
+  sessions: placed,
   forceOpen = false,
   showAll = false,
 }: {
   project: Project;
+  /** What shows under the project; every session, unnested, when not given. */
+  sessions?: PlacedSession[];
   forceOpen?: boolean;
   showAll?: boolean;
 }) {
@@ -47,8 +52,9 @@ export function ProjectGroup({
     if (current) setOpen(true);
   }, [current]);
 
-  const sessions = showAll || all ? project.sessions : project.sessions.slice(0, SESSIONS_SHOWN);
-  const hidden = project.sessions.length - sessions.length;
+  const roots = placed ?? flat(project);
+  const sessions = showAll || all ? roots : roots.slice(0, SESSIONS_SHOWN);
+  const hidden = roots.length - sessions.length;
 
   return (
     <section className="mb-0.5">
@@ -96,11 +102,11 @@ export function ProjectGroup({
       {expanded ? (
         <ul className="flex flex-col gap-px pt-0.5 pb-1">
           {sessions.length === 0 ? (
-            <li className="py-1 pl-9 text-ui-sm text-foreground-subtlest">No sessions yet</li>
+            <li className="py-1 pl-9 text-ui-sm text-foreground-subtlest">
+              {project.sessions.length === 0 ? "No sessions yet" : "Every session is in a group"}
+            </li>
           ) : (
-            sessions.map((session) => (
-              <SessionRow key={session.id} project={project} session={session} />
-            ))
+            <SessionTree entries={sessions} />
           )}
           {hidden > 0 ? (
             <li>
@@ -116,55 +122,6 @@ export function ProjectGroup({
         </ul>
       ) : null}
     </section>
-  );
-}
-
-function SessionRow({ project, session }: { project: Project; session: ProjectSession }) {
-  const activeId = useAbacus((state) => state.thread?.threadId);
-  const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
-  const view = useAbacus((state) => state.view);
-  const running = useAbacus((state) => Boolean(state.thread?.turnId));
-  const openSession = useAbacus((state) => state.openSession);
-  const active = view === "chat" && workspace === project.path && activeId === session.id;
-  const disabled = running && !active;
-
-  const row = (
-    <button
-      type="button"
-      onClick={() => void openSession(project.path, session.id)}
-      disabled={disabled}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "flex w-full min-w-0 items-center gap-2 rounded-lg py-1.5 pr-2.5 pl-9 text-left text-ui-base text-foreground-subtle hover:bg-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
-        active && "bg-selected text-foreground hover:bg-selected",
-      )}
-    >
-      <span className="min-w-0 flex-1 truncate">{session.title || "New session"}</span>
-      {active && running ? (
-        <span
-          className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand"
-          aria-label="Working"
-        />
-      ) : (
-        <span className="shrink-0 text-ui-xs text-foreground-subtlest">
-          {shortTime(session.updatedAt)}
-        </span>
-      )}
-    </button>
-  );
-  return (
-    <li>
-      {disabled ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="block">{row}</span>
-          </TooltipTrigger>
-          <TooltipContent side="right">Finish or stop the running turn first</TooltipContent>
-        </Tooltip>
-      ) : (
-        row
-      )}
-    </li>
   );
 }
 
@@ -241,15 +198,4 @@ export function OtherDevices({ projects }: { projects: Project[] }) {
         : null}
     </section>
   );
-}
-
-/** "now", "5m", "3h", "2d", then a date: the sidebar has no room for "ago". */
-function shortTime(iso: string): string {
-  const ago = Date.now() - Date.parse(iso);
-  if (Number.isNaN(ago)) return "";
-  if (ago < 60_000) return "now";
-  if (ago < 3_600_000) return `${Math.floor(ago / 60_000)}m`;
-  if (ago < 86_400_000) return `${Math.floor(ago / 3_600_000)}h`;
-  if (ago < 7 * 86_400_000) return `${Math.floor(ago / 86_400_000)}d`;
-  return relativeTime(iso);
 }

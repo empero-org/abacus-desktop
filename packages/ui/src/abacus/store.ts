@@ -29,7 +29,8 @@ import type { AbacusState } from "./state.js";
 export type { AbacusState, Notice, Phase } from "./state.js";
 
 let noticeCounter = 0;
-const INFO_NOTICE = /^(tethered|steering|noted|refine|mode) —/;
+// Messages from other sessions held for the person are news, not a problem.
+const INFO_NOTICE = /^(tethered|steering|noted|refine|mode) —|^(A message|\d+ messages) from /;
 let unsubscribe: (() => void) | null = null;
 
 function errorMessage(error: unknown): string {
@@ -286,6 +287,15 @@ export function createAbacusStore(bridge: AbacusBridge) {
           if (get().thread?.threadId === threadId) return;
           const snapshot = await bridge.request<ThreadSnapshot>("thread/resume", { threadId });
           set({ thread: threadFromSnapshot(snapshot) });
+        }),
+
+      forkThread: (threadId) =>
+        guard(async () => {
+          const params = threadId ? { threadId } : {};
+          const snapshot = await bridge.request<ThreadSnapshot>("thread/fork", params);
+          set({ thread: threadFromSnapshot(snapshot), view: "chat" });
+          // The fork is in this project, whose sessions the thread list holds.
+          await get().refreshThreads();
         }),
 
       renameThread: (name) =>

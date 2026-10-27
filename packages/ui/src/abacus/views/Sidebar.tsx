@@ -1,18 +1,26 @@
-// The sidebar: new thread and search on top, then every project with its
-// abacus sessions (synced ones included), and settings at the bottom. On macOS
-// the top strip leaves room for the traffic lights.
+// The sidebar: new thread and search on top, then the groups made here, every
+// project with its abacus sessions (synced ones included, forks nested under
+// what they came from), and settings at the bottom. On macOS the top strip
+// leaves room for the traffic lights.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FolderPlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, XIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { Project, ProjectSession } from "../bridge.js";
 import { useAbacus } from "../context.js";
+import { arrange, useGroups } from "../groups.js";
 import { BrandMark } from "./BrandMark.js";
+import { GroupsSection, NewGroupButton } from "./GroupList.js";
 import { OtherDevices, ProjectGroup } from "./ProjectList.js";
+
+/** How often the sidebar asks again which sessions are open or working elsewhere. */
+const LIVE_REFRESH_MS = 30_000;
 
 export function Sidebar({ platform }: { platform: string | undefined }) {
   const projects = useSidebarProjects();
+  const groups = useGroups();
+  useLiveRefresh();
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const view = useAbacus((state) => state.view);
   const setView = useAbacus((state) => state.setView);
@@ -24,6 +32,15 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
 
   const here = projects.filter((project) => project.exists);
   const elsewhere = projects.filter((project) => !project.exists);
+  // Sessions on another device cannot be opened here, so they join no group.
+  const arranged = useMemo(
+    () =>
+      arrange(
+        projects.filter((project) => project.exists),
+        groups,
+      ),
+    [projects, groups],
+  );
   const matches = useMemo(
     () =>
       needle
@@ -98,8 +115,10 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
           )
         ) : (
           <>
+            <GroupsSection entries={arranged.groups} />
             <div className="group/section flex items-center px-2.5 pt-1 pb-1.5">
               <span className="abacus-label flex-1">Projects</span>
+              {arranged.groups.length === 0 ? <NewGroupButton /> : null}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -120,7 +139,13 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
                 Projects you work on with abacus show up here, with their sessions.
               </p>
             ) : (
-              here.map((project) => <ProjectGroup key={project.path} project={project} />)
+              here.map((project) => (
+                <ProjectGroup
+                  key={project.path}
+                  project={project}
+                  sessions={arranged.projects.get(project.path)}
+                />
+              ))
             )}
             {elsewhere.length > 0 ? <OtherDevices projects={elsewhere} /> : null}
           </>
@@ -137,6 +162,25 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
       </div>
     </aside>
   );
+}
+
+/**
+ * Keep the open and working badges current. Other sessions start and finish
+ * turns in their own terminals and windows, and nothing tells this one, so it
+ * asks again now and then — only while the window is being looked at.
+ */
+function useLiveRefresh() {
+  const refreshProjects = useAbacus((state) => state.refreshProjects);
+  const refreshThreads = useAbacus((state) => state.refreshThreads);
+  const ready = useAbacus((state) => state.phase === "ready");
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void refreshProjects();
+      if (ready) void refreshThreads();
+    }, LIVE_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [refreshProjects, refreshThreads, ready]);
 }
 
 /**
@@ -158,6 +202,8 @@ function useSidebarProjects(): Project[] {
       model: thread.model,
       updatedAt: thread.updatedAt,
       messageCount: thread.itemCount,
+      forkedFrom: thread.forkedFrom ?? null,
+      live: thread.live ?? null,
     }));
     const base: Project[] =
       projects ??

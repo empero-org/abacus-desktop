@@ -2,7 +2,13 @@
 // main process. The renderer never sees Node, Electron, or the child process.
 
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
-import type { AbacusBridge, BrowserState, ServerMessage, TerminalEvent } from "@abacus/ui/bridge";
+import type {
+  AbacusBridge,
+  BrowserState,
+  ServerMessage,
+  SessionGroup,
+  TerminalEvent,
+} from "@abacus/ui/bridge";
 
 const bridge: AbacusBridge = {
   appInfo: () => ipcRenderer.invoke("app:info"),
@@ -57,6 +63,16 @@ const bridge: AbacusBridge = {
       const handler = () => listener();
       ipcRenderer.on("browser:agent", handler);
       return () => ipcRenderer.removeListener("browser:agent", handler);
+    },
+  },
+
+  groups: {
+    list: () => ipcRenderer.invoke("groups:list"),
+    save: (groups) => ipcRenderer.invoke("groups:save", groups),
+    onChange: (listener) => {
+      const handler = (_event: IpcRendererEvent, groups: SessionGroup[]) => listener(groups);
+      ipcRenderer.on("groups:changed", handler);
+      return () => ipcRenderer.removeListener("groups:changed", handler);
     },
   },
 

@@ -14,6 +14,7 @@ export interface CommandEntry {
 /** Commands this window carries out itself, without starting a turn. */
 export const WINDOW_COMMANDS: CommandEntry[] = [
   { name: "new", description: "Start a new thread", kind: "builtin" },
+  { name: "fork", description: "Continue this thread as a fork", kind: "builtin" },
   {
     name: "mode",
     description: "Auto reviews risky actions; YOLO runs everything",

@@ -4,6 +4,8 @@
 // abacus repo). Unknown fields are ignored and unknown methods are dropped,
 // so a newer CLI never breaks an older window; it only goes unrendered.
 
+import type { SessionLive } from "./bridge.js";
+
 export const PROTOCOL_VERSION = 1;
 
 /** AUTO reviews risky actions before they run; YOLO runs everything. */
@@ -26,6 +28,16 @@ export interface ThreadSummary {
   model: string;
   itemCount: number;
   updatedAt: string;
+  /** The thread this one was forked from (CLI 0.7.1 and later). */
+  forkedFrom?: string | null;
+  /** Open in an abacus right now, this window included. */
+  live?: SessionLive | null;
+}
+
+/** Who sent a message that came from another session rather than the person. */
+export interface MessageSender {
+  title: string;
+  session?: string | null;
 }
 
 export type ToolItemType = "commandExecution" | "fileChange" | "functionCall";
@@ -33,7 +45,15 @@ export type ToolItemType = "commandExecution" | "fileChange" | "functionCall";
 export type ToolStatus = "awaitingApproval" | "inProgress" | "completed" | "aborted" | "declined";
 
 export type Item =
-  | { id: string; type: "userMessage"; text: string; images?: string[] | null; files?: string[] }
+  | {
+      id: string;
+      type: "userMessage";
+      text: string;
+      images?: string[] | null;
+      files?: string[];
+      /** Set when another session's agent wrote it, not the person. */
+      from?: MessageSender | null;
+    }
   | { id: string; type: "agentMessage"; text: string }
   | { id: string; type: "reasoning"; text: string }
   /** Not from the server's items: the thread was compacted while idle (`thread/compacted`). */

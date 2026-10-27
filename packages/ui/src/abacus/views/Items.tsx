@@ -1,5 +1,6 @@
-// One transcript item: the person's message, the agent's answer, its
-// reasoning, or a tool call. Tool calls stay one quiet line until opened.
+// One transcript item: the person's message (or another session's), the
+// agent's answer, its reasoning, or a tool call. Tool calls stay one quiet line
+// until opened.
 
 import { memo, useEffect, useState } from "react";
 import {
@@ -9,6 +10,7 @@ import {
   CircleDashedIcon,
   CopyIcon,
   FilePenIcon,
+  GitBranchIcon,
   FileTextIcon,
   LoaderIcon,
   SquareTerminalIcon,
@@ -24,7 +26,7 @@ import {
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog.js";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
-import type { Item, ToolItemType, ToolStatus } from "../protocol.js";
+import type { Item, MessageSender, ToolItemType, ToolStatus } from "../protocol.js";
 import { compactNumber } from "../format.js";
 import { standsAlone, toolSubject, toolVerb } from "../tools.js";
 import { Markdown } from "./Markdown.js";
@@ -34,7 +36,11 @@ type ToolItem = Extract<Item, { status: ToolStatus }>;
 export const ItemView = memo(function ItemView({ item, live }: { item: Item; live: boolean }) {
   switch (item.type) {
     case "userMessage":
-      return <UserMessage text={item.text} images={item.images ?? []} files={item.files ?? []} />;
+      return item.from ? (
+        <PeerMessage text={item.text} from={item.from} />
+      ) : (
+        <UserMessage text={item.text} images={item.images ?? []} files={item.files ?? []} />
+      );
     case "agentMessage":
       return <AgentMessage text={item.text} streaming={live} />;
     case "reasoning":
@@ -53,6 +59,25 @@ function Compacted({ savedTokens }: { savedTokens: number }) {
       <span className="h-px flex-1 bg-border" />
       <span>Compacted while you were away · saved {compactNumber(savedTokens)} tokens</span>
       <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/**
+ * A message another session's agent sent this one. It is not the person's, so
+ * it sits on the agent's side, labelled with who wrote it.
+ */
+function PeerMessage({ text, from }: { text: string; from: MessageSender }) {
+  return (
+    <div className="flex max-w-[85%] flex-col gap-1.5 rounded-xl border border-dashed px-4 py-2.5">
+      <div className="flex min-w-0 items-center gap-1.5 text-ui-sm text-foreground-subtle">
+        <GitBranchIcon className="size-3.5 shrink-0 text-brand" />
+        <span className="shrink-0">Message from</span>
+        <span className="truncate font-medium text-foreground" title={from.session ?? undefined}>
+          {from.title}
+        </span>
+      </div>
+      <div className="text-ui-base leading-relaxed whitespace-pre-wrap break-words">{text}</div>
     </div>
   );
 }

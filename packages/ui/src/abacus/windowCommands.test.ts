@@ -10,7 +10,9 @@ function fakeState() {
       { name: "kojo/kojo", model: "kojo/kojo" },
       { name: "fast", model: "llama/qwen-3-4b" },
     ],
+    capabilities: { fork: true },
     newThread: vi.fn(async () => {}),
+    forkThread: vi.fn(async () => {}),
     setView: vi.fn(),
     compact: vi.fn(async () => {}),
     setMode: vi.fn(async () => {}),
@@ -32,6 +34,8 @@ describe("window commands", () => {
     expect(state.setView).toHaveBeenCalledWith("settings");
     await runWindowCommand(state, "profile", "Fast");
     expect(state.selectProfile).toHaveBeenCalledWith("fast");
+    expect(await runWindowCommand(state, "fork", "")).toBe(true);
+    expect(state.forkThread).toHaveBeenCalledWith();
   });
 
   it("explains a bad argument instead of guessing", async () => {

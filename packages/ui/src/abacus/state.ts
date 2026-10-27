@@ -83,6 +83,8 @@ export interface AbacusState {
 
   newThread(): Promise<void>;
   openThread(threadId: string): Promise<void>;
+  /** Continue a thread of this project (the open one by default) as a fork, and open the fork. */
+  forkThread(threadId?: string): Promise<void>;
   renameThread(name: string): Promise<void>;
   refreshThreads(): Promise<void>;
 

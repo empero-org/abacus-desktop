@@ -37,6 +37,37 @@ export interface ProjectSession {
   model: string;
   updatedAt: string;
   messageCount: number;
+  /** The session this one was forked from; absent from an older CLI. */
+  forkedFrom?: string | null;
+  /** Open in an abacus right now (a terminal or a window); absent when closed. */
+  live?: SessionLive | null;
+}
+
+export interface SessionLive {
+  /** `working` while a turn runs there. */
+  state: "working" | "idle";
+  /** What has it open: `tui`, `desktop` or `headless`. */
+  frontEnd?: string;
+}
+
+/**
+ * A group made in the sidebar. It gathers sessions from any project, and a
+ * session sits in at most one group.
+ */
+export interface SessionGroup {
+  id: string;
+  name: string;
+  /** Session ids, the most recently added first. */
+  sessions: string[];
+  collapsed?: boolean;
+}
+
+/** The sidebar's groups, kept by the main process and shared by every window. */
+export interface GroupsBridge {
+  list(): Promise<SessionGroup[]>;
+  /** Replace every group; the other windows hear about it through `onChange`. */
+  save(groups: SessionGroup[]): Promise<SessionGroup[]>;
+  onChange(listener: (groups: SessionGroup[]) => void): () => void;
 }
 
 /**
@@ -137,6 +168,7 @@ export interface AbacusBridge {
   onTerminal(listener: (event: TerminalEvent) => void): () => void;
 
   browser: BrowserBridge;
+  groups: GroupsBridge;
 
   /** Where a dropped or picked file lives on disk; null for one with no path (pasted from a browser). */
   pathForFile(file: File): string | null;

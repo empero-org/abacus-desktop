@@ -1,5 +1,5 @@
 // The `/` commands this window carries out itself: switching mode, effort,
-// profile or theme, a new thread, settings, compaction, renaming. Anything
+// profile or theme, a new thread or a fork, settings, compaction, renaming. Anything
 // else that starts with a slash goes to the app server, which knows the
 // skills, plugin commands and `/btw`.
 
@@ -27,6 +27,16 @@ export async function runWindowCommand(
   switch (name) {
     case "new":
       await state.newThread();
+      return true;
+    case "fork":
+      if (!state.capabilities.fork) {
+        state.notify(
+          "This abacus is too old to fork from the window. Update it, then reopen the project.",
+          "warning",
+        );
+        return true;
+      }
+      await state.forkThread();
       return true;
     case "settings":
       state.setView("settings");

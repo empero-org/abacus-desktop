@@ -23,6 +23,7 @@ import { detectCli, resolveCli } from "./cli.js";
 import { listSessions, mergeProjects } from "./projects.js";
 import { Browser } from "./browser.js";
 import { BROWSER_TOOLS, isBrowserTool, runBrowserTool } from "./browserTools.js";
+import { SessionGroups } from "./groups.js";
 import { RecentWorkspaces } from "./recent.js";
 import { Terminals } from "./terminal.js";
 import { createWindow, isExternalUrl, rendererPaths } from "./window.js";
@@ -64,6 +65,7 @@ async function detectDevServer(): Promise<string | null> {
 /** The project each window has open; outlives an app server that crashed. */
 const windowWorkspaces = new Map<number, string>();
 let recent: RecentWorkspaces;
+let groups: SessionGroups;
 let terminals: Promise<Terminals> | null = null;
 
 /**
@@ -199,6 +201,17 @@ function registerIpc(): void {
     // to the open project's own thread list.
     if (!listing) return null;
     return mergeProjects(listing, recent.list(), (path) => existsSync(path));
+  });
+  ipcMain.handle("groups:list", () => groups.list());
+  ipcMain.handle("groups:save", (event, value: unknown) => {
+    const saved = groups.save(value);
+    // Every window shows the same sidebar; the one that saved already knows.
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (window.webContents !== event.sender && !window.webContents.isDestroyed()) {
+        window.webContents.send("groups:changed", saved);
+      }
+    }
+    return saved;
   });
   ipcMain.handle("sync:status", () => syncStatus());
   ipcMain.handle("workspace:forget", (_event, path: unknown) =>
@@ -369,6 +382,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     recent = RecentWorkspaces.in(app.getPath("userData"));
+    groups = SessionGroups.in(app.getPath("userData"));
     registerIpc();
     openWindow(workspaceFromArgv(process.argv, process.cwd(), app.isPackaged));
     app.on("activate", () => {
