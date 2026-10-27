@@ -14,14 +14,15 @@ import {
   type InitializeResult,
   type Item,
   type ThreadSnapshot,
+  type Notifications,
   type ThreadSummary,
 } from "./protocol.js";
-import { inputPart, isAttachableImage, readAttachment, type Attachment } from "./attachments.js";
-import { mergeCommands, parseCommand } from "./completion.js";
+import { isAttachableImage, readAttachment } from "./attachments.js";
+import { mergeCommands } from "./completion.js";
 import { addPending, applyNotification, resolvePending, threadFromSnapshot } from "./thread.js";
 import { serverLists } from "./lists.js";
+import { messageActions } from "./messageActions.js";
 import { profileActions } from "./profileActions.js";
-import { runWindowCommand } from "./windowCommands.js";
 
 import type { AbacusState } from "./state.js";
 
@@ -78,6 +79,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
     };
 
     const helpers = { guard, attempt, applyConfig, refreshProfiles, errorMessage };
+    const messages = messageActions(bridge, get, set, guard);
 
     const onMessage = (message: ServerMessage) => {
       if (message.kind === "exit") {
@@ -122,6 +124,12 @@ export function createAbacusStore(bridge: AbacusBridge) {
       }
       const thread = get().thread;
       if (thread) set({ thread: applyNotification(thread, message.method, message.params) });
+      if (message.method === "turn/completed") {
+        void messages.flushQueued(message.params as Notifications["turn/completed"]);
+      }
+      if (message.method === "turn/steer/delivered") {
+        messages.delivered(message.params as Notifications["turn/steer/delivered"]);
+      }
       if (message.method === "turn/completed" || message.method === "thread/name/updated") {
         void get().refreshThreads();
         void get().refreshProjects();
@@ -149,6 +157,8 @@ export function createAbacusStore(bridge: AbacusBridge) {
       crash: null,
       drafts: {},
       attachments: {},
+      queued: {},
+      sendingNow: {},
       commands: mergeCommands([]),
       tasks: [],
 
@@ -182,6 +192,8 @@ export function createAbacusStore(bridge: AbacusBridge) {
           thread: null,
           threads: [],
           tasks: [],
+          queued: {},
+          sendingNow: {},
           view: "chat",
         });
         try {
@@ -285,43 +297,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
         }
       },
 
-      send: (text) =>
-        guard(async () => {
-          const thread = get().thread;
-          const attached = thread ? (get().attachments[thread.threadId] ?? []) : [];
-          if (!thread || (!text.trim() && attached.length === 0)) return;
-          const clear = (draft: string, files: Attachment[]) =>
-            set({
-              drafts: { ...get().drafts, [thread.threadId]: draft },
-              attachments: { ...get().attachments, [thread.threadId]: files },
-            });
-          // The window's own commands act here and start no turn.
-          const command = attached.length === 0 ? parseCommand(text) : null;
-          if (command && (await runWindowCommand(get(), command.name, command.argument))) {
-            clear("", []);
-            return;
-          }
-          clear("", []);
-          const input = [
-            ...(text.trim() ? [{ type: "text", text }] : []),
-            ...attached.map(inputPart),
-          ];
-          try {
-            // While a turn runs, a message steers it instead of queueing a new
-            // one; the server decides which applies. Skills, plugin commands
-            // and `/btw` are resolved there too.
-            await bridge.request("turn/start", { threadId: thread.threadId, input });
-          } catch (error) {
-            // Nothing was sent: give the person back what they wrote.
-            if (
-              !get().drafts[thread.threadId] &&
-              !(get().attachments[thread.threadId] ?? []).length
-            ) {
-              clear(text, attached);
-            }
-            throw error;
-          }
-        }),
+      ...messages.actions,
 
       interrupt: () => guard(async () => void (await bridge.request("turn/interrupt"))),
 

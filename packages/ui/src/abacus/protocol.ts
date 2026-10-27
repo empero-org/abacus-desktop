@@ -226,7 +226,16 @@ export interface Notifications {
     usage: TokenUsage;
   };
   "turn/started": { threadId: string; turnId: string };
-  "turn/completed": { threadId: string; turnId: string; status: string; name?: string };
+  /** A steering message reached the model; `text` is what `turn/start` answered with. */
+  "turn/steer/delivered": { threadId: string; text: string };
+  /** `continues`: a steer this turn did not reach starts the next one at once. */
+  "turn/completed": {
+    threadId: string;
+    turnId: string;
+    status: string;
+    name?: string;
+    continues?: boolean;
+  };
   "turn/diff/updated": { threadId: string; turnId: string; files: ChangedFile[] };
   "item/started": { threadId: string; turnId: string; startedAtMs: number; item: Item };
   "item/completed": { threadId: string; turnId: string; completedAtMs: number; item: Item };

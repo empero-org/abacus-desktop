@@ -25,7 +25,9 @@ change made in the app is the change the terminal UI would make.
   you can open.
 - **The composer.** `/` completes commands, skills and plugin commands, `@`
   completes files in the project. Paste, drop or attach images and text files.
-  Type while the agent works to steer it, or stop it with Esc.
+  What you send while the agent works waits in a stack above the box and goes
+  when the turn ends; Steer hands a message to the agent mid-turn, and Send now
+  stops the turn and sends it. Esc stops the agent.
 - **Profiles and providers.** Switch profiles from the composer. Add providers
   in Settings (any OpenAI-compatible or Anthropic API, with its key, headers
   and body fields) and make profiles from the models they serve. On first run

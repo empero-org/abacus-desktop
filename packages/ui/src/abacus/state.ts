@@ -17,6 +17,7 @@ import type {
   ReasoningEffort,
   ThreadSummary,
 } from "./protocol.js";
+import type { QueuedMessage } from "./queue.js";
 import type { ThreadView } from "./thread.js";
 
 export type Phase = "booting" | "welcome" | "connecting" | "ready" | "crashed";
@@ -54,6 +55,10 @@ export interface AbacusState {
   crash: { code: number | null; tail: string } | null;
   /** The composer's draft, kept per thread so switching threads does not lose it. */
   drafts: Record<string, string>;
+  /** Messages written while abacus works, per thread, oldest first. */
+  queued: Record<string, QueuedMessage[]>;
+  /** The queued message each thread sends once the turn Send now stopped has ended. */
+  sendingNow: Record<string, number>;
   /** Images and files waiting in the composer, per thread like the draft. */
   attachments: Record<string, Attachment[]>;
   /** The `/` commands to offer: this window's, then the app server's (skills, plugins). */
@@ -79,7 +84,15 @@ export interface AbacusState {
   renameThread(name: string): Promise<void>;
   refreshThreads(): Promise<void>;
 
+  /** A new turn, or while one runs, a message queued for when it ends. */
   send(text: string): Promise<void>;
+  /** Hand a queued message to the running turn; the model reads it after its current step. */
+  steerQueued(id: number): Promise<void>;
+  /** Stop the running turn and send a queued message straight after. */
+  sendQueuedNow(id: number): Promise<void>;
+  removeQueued(id: number): void;
+  /** Take a queued message back into the composer. */
+  editQueued(id: number): Promise<void>;
   interrupt(): Promise<void>;
   answerApproval(id: string | number, decision: ApprovalDecision): Promise<void>;
   answerQuestion(id: string | number, selected: string[], custom?: string): Promise<void>;

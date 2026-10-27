@@ -1,5 +1,6 @@
-// Where the person writes. Enter sends; while a turn runs, a message steers it
-// and the send button turns into Stop. `/` completes commands and `@` files;
+// Where the person writes. Enter sends; while a turn runs, a message waits in a
+// queue at the top of the box (QueueBar) and the send button turns into Stop
+// when there is nothing to queue. `/` completes commands and `@` files;
 // images and text files come in by paste, drop or the attach button. Anything
 // the agent is blocked on (an approval, a question) sits above the box, where
 // the eye already is.
@@ -38,6 +39,7 @@ import type { Attachment } from "../attachments.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { AttachButton, AttachmentStrip } from "./Attachments.js";
 import { CompletionList, useCompletion } from "./Completion.js";
+import { QueueBar } from "./QueueBar.js";
 import { Requests } from "./Requests.js";
 
 export function Composer() {
@@ -135,6 +137,7 @@ export function Composer() {
             dragging && "border-brand/60 bg-selected",
           )}
         >
+          <QueueBar />
           <CompletionList completion={completion} />
           {attachments.length > 0 ? <AttachmentStrip attachments={attachments} /> : null}
           <textarea
@@ -153,7 +156,7 @@ export function Composer() {
               blocked
                 ? "Answer the request above first"
                 : running
-                  ? "Steer the running turn…"
+                  ? "Queue a follow-up…"
                   : "Ask abacus anything — / for commands, @ for files"
             }
             className="max-h-[40vh] min-h-[52px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"
@@ -184,7 +187,7 @@ export function Composer() {
                 type="submit"
                 disabled={!ready || blocked}
                 className="flex size-8 items-center justify-center rounded-full bg-brand text-primary-foreground transition-opacity hover:opacity-85 disabled:bg-foreground/15 disabled:text-foreground-subtlest"
-                aria-label={running ? "Steer" : "Send"}
+                aria-label={running ? "Queue" : "Send"}
               >
                 <ArrowUpIcon className="size-4" strokeWidth={2.5} />
               </button>
