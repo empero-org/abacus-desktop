@@ -78,12 +78,9 @@ function ApprovalCard({
         </span>
       </div>
       <pre className="max-h-48 overflow-auto rounded-lg bg-terminal-bg px-3 py-2.5 font-mono text-ui-sm leading-relaxed whitespace-pre-wrap break-words text-terminal-fg">
-        {params.command}
+        {params.details ?? params.command}
       </pre>
       {params.reason ? <p className="text-ui-sm text-foreground-subtle">{params.reason}</p> : null}
-      <p className="text-ui-sm text-foreground-subtlest">
-        The safety review could not decide on this one, so it is your call.
-      </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="lg" onClick={() => decide("accept")} disabled={busy} autoFocus>
           Allow

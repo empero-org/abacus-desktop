@@ -248,9 +248,13 @@ export interface ApprovalRequestParams {
   itemId: string;
   startedAtMs: number;
   tool: string;
+  /** One line: the command, or the file a change is to. */
   command: string;
   cwd: string;
+  /** Why the person is asked. */
   reason?: string;
+  /** The operation in full: `$ command`, or the change as a diff. */
+  details?: string;
   availableDecisions: ApprovalDecision[];
 }
 
