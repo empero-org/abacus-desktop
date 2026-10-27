@@ -58,6 +58,11 @@ export type Item =
   | { id: string; type: "reasoning"; text: string }
   /** Not from the server's items: the thread was compacted while idle (`thread/compacted`). */
   | { id: string; type: "contextCompaction"; savedTokens: number }
+  /**
+   * Where a reopened thread's history was compacted (CLI 0.7.1 and later): how
+   * much was folded away there, and whether the summary stands in for it.
+   */
+  | { id: string; type: "contextCompaction"; messages: number; tokens: number; summarised: boolean }
   | {
       id: string;
       type: ToolItemType;

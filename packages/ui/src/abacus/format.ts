@@ -1,5 +1,7 @@
 // Small formatting helpers shared by the views.
 
+import type { Item } from "./protocol.js";
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -34,6 +36,21 @@ export function compactNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(
     value,
   );
+}
+
+/**
+ * What a compaction divider says: live, where the thread was summarised while
+ * the person was away, or in a reopened thread, where its history was cut.
+ */
+export function compactionLabel(item: Extract<Item, { type: "contextCompaction" }>): string {
+  if ("savedTokens" in item) {
+    return `Compacted while you were away · saved ${compactNumber(item.savedTokens)} tokens`;
+  }
+  const what = item.summarised
+    ? "Earlier conversation summarised"
+    : "Earlier conversation dropped to fit the context";
+  const messages = `${item.messages} message${item.messages === 1 ? "" : "s"}`;
+  return `${what} · ${messages}, about ${compactNumber(item.tokens)} tokens`;
 }
 
 /** Share of the context window used, 0-100, or null when the window is unknown. */

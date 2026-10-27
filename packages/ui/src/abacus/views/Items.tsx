@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
 import type { Item, MessageSender, ToolItemType, ToolStatus } from "../protocol.js";
-import { compactNumber } from "../format.js";
+import { compactionLabel } from "../format.js";
 import { standsAlone, toolSubject, toolVerb } from "../tools.js";
 import { Markdown } from "./Markdown.js";
 
@@ -46,18 +46,18 @@ export const ItemView = memo(function ItemView({ item, live }: { item: Item; liv
     case "reasoning":
       return <Reasoning text={item.text} streaming={live} />;
     case "contextCompaction":
-      return <Compacted savedTokens={item.savedTokens} />;
+      return <Compacted label={compactionLabel(item)} />;
     default:
       return <ToolCall item={item} />;
   }
 });
 
-/** Where the context was summarised while the person was away. */
-function Compacted({ savedTokens }: { savedTokens: number }) {
+/** Where the context was summarised: while the person was away, or earlier in a reopened thread. */
+function Compacted({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 text-ui-sm text-foreground-subtlest" role="separator">
       <span className="h-px flex-1 bg-border" />
-      <span>Compacted while you were away · saved {compactNumber(savedTokens)} tokens</span>
+      <span>{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );

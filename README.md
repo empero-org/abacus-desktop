@@ -49,7 +49,8 @@ change made in the app is the change the terminal UI would make.
 - **Idle compaction.** A long thread left idle for a few minutes after a turn
   is summarised while the provider still has it cached, so your next message
   does not send the whole history again at full price; a divider in the
-  conversation says so. Typing holds it off, and it never runs against a model
+  conversation says so, and a reopened thread shows one wherever its history
+  was summarised. Typing holds it off, and it never runs against a model
   server on your machine or local network. Settings → Agent turns it off.
 - **Settings.** Theme, profile, reasoning effort, mode, profiles and
   providers, and your sync status.
