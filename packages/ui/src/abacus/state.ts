@@ -45,6 +45,8 @@ export interface AbacusState {
   view: "chat" | "settings";
   /** No provider or profile yet: the window sets one up before the first turn. */
   needsSetup: boolean;
+  /** Whether a long thread left idle is compacted; an abacus setting, not the thread's. */
+  idleCompaction: boolean;
   profiles: ProfileEntry[];
   providers: ProviderEntry[];
   /** The ready-made providers to start from. */
@@ -113,6 +115,7 @@ export interface AbacusState {
   refreshProfiles(): Promise<void>;
   setMode(mode: AgentMode): Promise<void>;
   setReasoningEffort(effort: ReasoningEffort | null): Promise<void>;
+  setIdleCompaction(enabled: boolean): Promise<void>;
   setDraft(threadId: string, text: string): void;
   attach(files: File[]): Promise<void>;
   detach(id: string): void;

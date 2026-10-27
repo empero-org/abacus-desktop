@@ -36,6 +36,8 @@ export type Item =
   | { id: string; type: "userMessage"; text: string; images?: string[] | null; files?: string[] }
   | { id: string; type: "agentMessage"; text: string }
   | { id: string; type: "reasoning"; text: string }
+  /** Not from the server's items: the thread was compacted while idle (`thread/compacted`). */
+  | { id: string; type: "contextCompaction"; savedTokens: number }
   | {
       id: string;
       type: ToolItemType;
@@ -69,6 +71,8 @@ export interface InitializeResult {
   /** No provider yet: the window sets one up before the first turn. */
   needsSetup?: boolean;
   capabilities: Record<string, boolean>;
+  /** Whether a long thread left idle is compacted (capability `idleCompaction`). */
+  idleCompaction?: boolean;
   thread: ThreadSnapshot;
 }
 
@@ -87,9 +91,10 @@ export interface ConfigValueResult {
   reasoningEffort: ReasoningEffort | null;
   contextWindow?: number | null;
   needsSetup?: boolean;
+  idleCompaction?: boolean;
 }
 
-export type WritableConfigKey = "profile" | "reasoning_effort" | "mode";
+export type WritableConfigKey = "profile" | "reasoning_effort" | "mode" | "idle_compaction";
 
 export type Protocol = "chat-completions" | "responses" | "anthropic";
 
@@ -237,6 +242,8 @@ export interface Notifications {
     continues?: boolean;
   };
   "turn/diff/updated": { threadId: string; turnId: string; files: ChangedFile[] };
+  /** The thread was summarised while nobody was using it, saving about `savedTokens` a request. */
+  "thread/compacted": { threadId: string; reason: "idle"; savedTokens: number };
   "item/started": { threadId: string; turnId: string; startedAtMs: number; item: Item };
   "item/completed": { threadId: string; turnId: string; completedAtMs: number; item: Item };
   "item/agentMessage/delta": { threadId: string; turnId: string; itemId: string; delta: string };

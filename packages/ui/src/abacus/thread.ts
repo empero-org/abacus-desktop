@@ -149,6 +149,17 @@ export function applyNotification(thread: ThreadView, method: string, params: un
     }
     case "turn/diff/updated":
       return { ...thread, changedFiles: (params as Notifications["turn/diff/updated"]).files };
+    // A line in the transcript rather than a notice: it happens while the
+    // person is away, and a notice would be gone before they are back.
+    case "thread/compacted": {
+      const { savedTokens } = params as Notifications["thread/compacted"];
+      const item: Item = {
+        id: `compaction_${thread.items.length}`,
+        type: "contextCompaction",
+        savedTokens,
+      };
+      return { ...thread, items: [...thread.items, item] };
+    }
     default:
       return thread;
   }

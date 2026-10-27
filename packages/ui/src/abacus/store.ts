@@ -64,6 +64,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
 
     const applyConfig = (result: ConfigValueResult) => {
       if (result.needsSetup !== undefined) set({ needsSetup: result.needsSetup });
+      if (result.idleCompaction !== undefined) set({ idleCompaction: result.idleCompaction });
       const thread = get().thread;
       if (!thread) return;
       set({
@@ -120,6 +121,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
         // method this window called.
         const update = message.params as ConfigValueResult;
         if (update.needsSetup !== undefined) set({ needsSetup: update.needsSetup });
+        if (update.idleCompaction !== undefined) set({ idleCompaction: update.idleCompaction });
         void refreshProfiles();
       }
       const thread = get().thread;
@@ -149,6 +151,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       thread: null,
       view: "chat",
       needsSetup: false,
+      idleCompaction: true,
       profiles: [],
       providers: [],
       presets: [],
@@ -206,6 +209,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
             serverVersion: init.serverInfo.version,
             capabilities: init.capabilities ?? {},
             needsSetup: init.needsSetup ?? false,
+            idleCompaction: init.idleCompaction ?? true,
             catalogs: {},
             thread: threadFromSnapshot(init.thread),
             phase: "ready",
@@ -333,6 +337,15 @@ export function createAbacusStore(bridge: AbacusBridge) {
             await bridge.request<ConfigValueResult>("config/value/write", {
               key: "reasoning_effort",
               value: effort,
+            }),
+          ),
+        ),
+      setIdleCompaction: (enabled) =>
+        guard(async () =>
+          applyConfig(
+            await bridge.request<ConfigValueResult>("config/value/write", {
+              key: "idle_compaction",
+              value: enabled,
             }),
           ),
         ),

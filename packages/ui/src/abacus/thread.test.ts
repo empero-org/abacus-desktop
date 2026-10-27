@@ -196,6 +196,18 @@ describe("applyNotification", () => {
     ]);
     expect(unknown.contextWindow).toBe(128_000);
   });
+
+  it("marks where the thread was compacted while idle", () => {
+    const thread = run(
+      ["thread/compacted", { threadId: "t1", reason: "idle", savedTokens: 398_900 }],
+      ["thread/compacted", { threadId: "t1", reason: "idle", savedTokens: 120_000 }],
+      ["thread/compacted", { threadId: "other", reason: "idle", savedTokens: 1 }],
+    );
+    expect(thread.items).toEqual([
+      { id: "compaction_0", type: "contextCompaction", savedTokens: 398_900 },
+      { id: "compaction_1", type: "contextCompaction", savedTokens: 120_000 },
+    ]);
+  });
 });
 
 describe("pending requests", () => {

@@ -162,6 +162,11 @@ const MODE_HINTS: Record<AgentMode, string> = {
   yolo: "Everything runs without review or asking, for this session.",
 };
 
+const TOGGLE: { value: "on" | "off"; label: string }[] = [
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+];
+
 const EFFORTS: { value: ReasoningEffort | "default"; label: string }[] = [
   { value: "default", label: "Model default" },
   { value: "minimal", label: "Minimal" },
@@ -179,6 +184,9 @@ function Agent() {
   const selectProfile = useAbacus((state) => state.selectProfile);
   const setMode = useAbacus((state) => state.setMode);
   const setReasoningEffort = useAbacus((state) => state.setReasoningEffort);
+  const idleCompaction = useAbacus((state) => state.idleCompaction);
+  const setIdleCompaction = useAbacus((state) => state.setIdleCompaction);
+  const canIdleCompact = useAbacus((state) => Boolean(state.capabilities.idleCompaction));
   const running = Boolean(thread?.turnId);
 
   if (!thread || !ready) {
@@ -244,6 +252,18 @@ function Agent() {
         <Row label="Mode" hint={MODE_HINTS[thread.mode]}>
           <Segmented value={thread.mode} options={MODES} onChange={(mode) => void setMode(mode)} />
         </Row>
+        {canIdleCompact ? (
+          <Row
+            label="Idle compaction"
+            hint="When a long session sits idle for about 4½ minutes, it is summarised while the provider still has it cached, so your next message does not resend the whole history. Not for local servers."
+          >
+            <Segmented
+              value={idleCompaction ? "on" : "off"}
+              options={TOGGLE}
+              onChange={(value) => void setIdleCompaction(value === "on")}
+            />
+          </Row>
+        ) : null}
       </Section>
       <Section
         title="Profiles"
