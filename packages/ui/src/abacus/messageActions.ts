@@ -22,10 +22,13 @@ type Get = () => AbacusState;
 type Set = (partial: Partial<AbacusState>) => void;
 type MessageActions = Pick<
   AbacusState,
-  "send" | "steerQueued" | "sendQueuedNow" | "removeQueued" | "editQueued"
+  "send" | "setDraft" | "steerQueued" | "sendQueuedNow" | "removeQueued" | "editQueued"
 >;
 
 let queueCounter = 0;
+
+/** How often, at most, the app server hears that the person is still typing. */
+const TYPING_EVERY_MS = 15_000;
 
 function input(text: string, attachments: Attachment[]) {
   return [...(text.trim() ? [{ type: "text", text }] : []), ...attachments.map(inputPart)];
@@ -38,6 +41,7 @@ export function messageActions(
   guard: (work: () => Promise<void>) => Promise<void>,
 ) {
   const queueOf = (threadId: string) => get().queued[threadId] ?? [];
+  let typedAt = 0;
   const setQueue = (threadId: string, queue: QueuedMessage[]) =>
     set({ queued: { ...get().queued, [threadId]: queue } });
   const find = (id: number) => {
@@ -76,6 +80,18 @@ export function messageActions(
   };
 
   const actions: MessageActions = {
+    setDraft(threadId, text) {
+      set({ drafts: { ...get().drafts, [threadId]: text } });
+      // The app server cannot see the composer. Told the person is writing,
+      // it holds idle compaction off as a keystroke in the terminal does; an
+      // abacus without `thread/typing` answers with an error, ignored here.
+      const now = Date.now();
+      if (now - typedAt >= TYPING_EVERY_MS) {
+        typedAt = now;
+        bridge.request("thread/typing").catch(() => {});
+      }
+    },
+
     send: (text) =>
       guard(async () => {
         const thread = get().thread;

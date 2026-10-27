@@ -118,6 +118,7 @@ export interface AbacusState {
   setMode(mode: AgentMode): Promise<void>;
   setReasoningEffort(effort: ReasoningEffort | null): Promise<void>;
   setIdleCompaction(enabled: boolean): Promise<void>;
+  /** Keep the composer's draft; while it changes, the app server holds idle compaction off. */
   setDraft(threadId: string, text: string): void;
   attach(files: File[]): Promise<void>;
   detach(id: string): void;

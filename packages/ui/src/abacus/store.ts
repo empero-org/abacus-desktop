@@ -360,10 +360,6 @@ export function createAbacusStore(bridge: AbacusBridge) {
           ),
         ),
 
-      setDraft(threadId, text) {
-        set({ drafts: { ...get().drafts, [threadId]: text } });
-      },
-
       async attach(files) {
         const thread = get().thread;
         if (!thread || files.length === 0) return;
