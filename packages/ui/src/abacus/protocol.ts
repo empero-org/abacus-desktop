@@ -221,7 +221,7 @@ export interface ProfileDraft {
 export interface BackgroundTask {
   id: number;
   name: string;
-  /** scout, drone, worker, resumed, or an authored spec's id. */
+  /** general, explore, or resumed for a worker continued by message. */
   role: string;
   model: string;
   prompt: string;
