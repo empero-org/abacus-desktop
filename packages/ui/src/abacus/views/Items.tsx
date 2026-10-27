@@ -1,10 +1,11 @@
-// One transcript item: the person's message (or another session's), the
-// agent's answer, its reasoning, or a tool call. Tool calls stay one quiet line
-// until opened.
+// One transcript item: the person's message (or another session's, or a
+// subagent's), the agent's answer, its reasoning, or a tool call. Tool calls
+// stay one quiet line until opened.
 
 import { memo, useEffect, useState } from "react";
 import {
   BanIcon,
+  BotIcon,
   CheckIcon,
   ChevronRightIcon,
   CircleDashedIcon,
@@ -36,6 +37,7 @@ type ToolItem = Extract<Item, { status: ToolStatus }>;
 export const ItemView = memo(function ItemView({ item, live }: { item: Item; live: boolean }) {
   switch (item.type) {
     case "userMessage":
+      if (item.report && item.from) return <SubagentReport text={item.text} from={item.from} />;
       return item.from ? (
         <PeerMessage text={item.text} from={item.from} />
       ) : (
@@ -64,14 +66,15 @@ function Compacted({ label }: { label: string }) {
 }
 
 /**
- * A message another session's agent sent this one. It is not the person's, so
- * it sits on the agent's side, labelled with who wrote it.
+ * A message another session's agent, or a subagent, sent this one. It is not
+ * the person's, so it sits on the agent's side, labelled with who wrote it.
  */
 function PeerMessage({ text, from }: { text: string; from: MessageSender }) {
+  const Icon = from.agent ? BotIcon : GitBranchIcon;
   return (
     <div className="flex max-w-[85%] flex-col gap-1.5 rounded-xl border border-dashed px-4 py-2.5">
       <div className="flex min-w-0 items-center gap-1.5 text-ui-sm text-foreground-subtle">
-        <GitBranchIcon className="size-3.5 shrink-0 text-brand" />
+        <Icon className="size-3.5 shrink-0 text-brand" />
         <span className="shrink-0">Message from</span>
         <span className="truncate font-medium text-foreground" title={from.session ?? undefined}>
           {from.title}
@@ -79,6 +82,33 @@ function PeerMessage({ text, from }: { text: string; from: MessageSender }) {
       </div>
       <div className="text-ui-base leading-relaxed whitespace-pre-wrap break-words">{text}</div>
     </div>
+  );
+}
+
+/**
+ * What background subagents reported. It reaches the agent as a prompt; the
+ * person sees who reported, and opens it for the details.
+ */
+function SubagentReport({ text, from }: { text: string; from: MessageSender }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="max-w-[85%] rounded-xl border border-dashed px-4 py-2.5"
+    >
+      <CollapsibleTrigger className="group/report flex w-full min-w-0 items-center gap-1.5 text-left text-ui-sm text-foreground-subtle hover:text-foreground">
+        <BotIcon className="size-3.5 shrink-0 text-brand" />
+        <span className="shrink-0">Report from</span>
+        <span className="truncate font-medium text-foreground">{from.title}</span>
+        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/report:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Markdown className="mt-2 text-ui-sm leading-relaxed [&_h2]:mt-4 [&_h2]:mb-1 [&_h2]:text-ui-base [&_h2]:font-medium">
+          {text}
+        </Markdown>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -242,6 +272,12 @@ function ToolCall({ item }: { item: ToolItem }) {
           <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-transform group-hover/tool:opacity-100 group-data-[state=open]/tool:rotate-90 group-data-[state=open]/tool:opacity-100" />
         ) : null}
       </CollapsibleTrigger>
+      {/* What a send_message call said stays in view, as a received one does. */}
+      {item.message ? (
+        <p className="mt-0.5 mb-2 ml-6 border-l-2 border-brand/30 pl-3 text-ui-sm leading-relaxed whitespace-pre-wrap break-words text-foreground-subtle">
+          {item.message}
+        </p>
+      ) : null}
       {output ? (
         <CollapsibleContent>
           <pre className="mt-1.5 mb-2 max-h-80 overflow-auto rounded-lg border bg-terminal-bg px-3 py-2.5 font-mono text-ui-sm leading-relaxed whitespace-pre-wrap break-words text-terminal-fg">

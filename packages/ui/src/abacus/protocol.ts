@@ -34,10 +34,12 @@ export interface ThreadSummary {
   live?: SessionLive | null;
 }
 
-/** Who sent a message that came from another session rather than the person. */
+/** Who sent a message that did not come from the person: another session, or an agent of this one. */
 export interface MessageSender {
   title: string;
   session?: string | null;
+  /** A subagent sent it, or `main` in a subagent's transcript (CLI 0.7.2 and later). */
+  agent?: boolean;
 }
 
 export type ToolItemType = "commandExecution" | "fileChange" | "functionCall";
@@ -51,8 +53,10 @@ export type Item =
       text: string;
       images?: string[] | null;
       files?: string[];
-      /** Set when another session's agent wrote it, not the person. */
+      /** Set when another session's agent or a subagent wrote it, not the person. */
       from?: MessageSender | null;
+      /** Background subagents' report; `from.title` names them (CLI 0.7.2 and later). */
+      report?: boolean;
     }
   | { id: string; type: "agentMessage"; text: string }
   | { id: string; type: "reasoning"; text: string }
@@ -70,6 +74,8 @@ export type Item =
       command?: string;
       status: ToolStatus;
       output?: string;
+      /** What a `send_message` call said (CLI 0.7.2 and later). */
+      message?: string;
     };
 
 export interface ThreadSnapshot {
