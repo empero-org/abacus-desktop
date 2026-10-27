@@ -19,9 +19,11 @@ import type {
 export interface ThreadView {
   threadId: string;
   name: string;
+  /** The profile the session runs. */
+  profile: string;
+  /** `provider/model`. */
   model: string;
   mode: AgentMode;
-  autoApprove: boolean;
   reasoningEffort: ReasoningEffort | null;
   contextWindow: number | null;
   /** How full the context is; null when the CLI does not say. */
@@ -42,9 +44,9 @@ export function threadFromSnapshot(snapshot: ThreadSnapshot): ThreadView {
   return {
     threadId: snapshot.threadId,
     name: snapshot.name,
+    profile: snapshot.profile,
     model: snapshot.model,
     mode: snapshot.mode,
-    autoApprove: snapshot.autoApprove,
     reasoningEffort: snapshot.reasoningEffort,
     contextWindow: snapshot.contextWindow,
     contextTokens: snapshot.contextTokens ?? null,
@@ -123,6 +125,18 @@ export function applyNotification(thread: ThreadView, method: string, params: un
       return { ...thread, name: (params as Notifications["thread/name/updated"]).name };
     case "thread/mode/updated":
       return { ...thread, mode: (params as Notifications["thread/mode/updated"]).mode };
+    case "thread/profile/updated": {
+      // Another profile, or the same one changed: the session runs what it says now.
+      const update = params as Notifications["thread/profile/updated"];
+      return {
+        ...thread,
+        profile: update.profile,
+        model: update.model,
+        mode: update.mode,
+        reasoningEffort: update.reasoningEffort,
+        contextWindow: update.contextWindow ?? thread.contextWindow,
+      };
+    }
     case "thread/tokenUsage/updated": {
       const update = params as Notifications["thread/tokenUsage/updated"];
       return {

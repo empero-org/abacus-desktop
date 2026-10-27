@@ -11,10 +11,9 @@ import {
 const snapshot: ThreadSnapshot = {
   threadId: "t1",
   name: "New session",
-  model: "test-model",
-  profile: "default",
+  model: "test/test-model",
+  profile: "test/test-model",
   mode: "auto",
-  autoApprove: false,
   reasoningEffort: null,
   workspace: "/work",
   contextWindow: 128_000,
@@ -158,7 +157,7 @@ describe("applyNotification", () => {
         "thread/tokenUsage/updated",
         { threadId: "t1", tokensUsed: 15, contextTokens: 12, contextWindow: 200_000, usage },
       ],
-      ["thread/mode/updated", { threadId: "t1", mode: "build" }],
+      ["thread/mode/updated", { threadId: "t1", mode: "yolo" }],
       [
         "turn/diff/updated",
         {
@@ -171,8 +170,31 @@ describe("applyNotification", () => {
     expect(thread.tokensUsed).toBe(15);
     expect(thread.contextTokens).toBe(12);
     expect(thread.contextWindow).toBe(200_000);
-    expect(thread.mode).toBe("build");
+    expect(thread.mode).toBe("yolo");
     expect(thread.changedFiles[0]?.path).toBe("src/a.rs");
+  });
+
+  it("follows the profile the session switches to", () => {
+    const thread = run([
+      "thread/profile/updated",
+      {
+        profile: "fast",
+        model: "llama/qwen-3-4b",
+        mode: "auto",
+        reasoningEffort: "low",
+        contextWindow: 32_000,
+      },
+    ]);
+    expect(thread.profile).toBe("fast");
+    expect(thread.model).toBe("llama/qwen-3-4b");
+    expect(thread.reasoningEffort).toBe("low");
+    expect(thread.contextWindow).toBe(32_000);
+    // A window the CLI does not know keeps the one there was.
+    const unknown = run([
+      "thread/profile/updated",
+      { profile: "x", model: "a/b", mode: "auto", reasoningEffort: null },
+    ]);
+    expect(unknown.contextWindow).toBe(128_000);
   });
 });
 

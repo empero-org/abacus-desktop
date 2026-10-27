@@ -14,7 +14,14 @@ import {
   type DragEvent,
   type KeyboardEvent,
 } from "react";
-import { ArrowUpIcon, CheckIcon, ChevronDownIcon, ShieldCheckIcon, SquareIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  Settings2Icon,
+  ShieldAlertIcon,
+  SquareIcon,
+} from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import {
   DropdownMenu,
@@ -155,10 +162,9 @@ export function Composer() {
           <div className="flex items-center gap-1 px-2.5 pt-1 pb-2.5">
             <AttachButton onFiles={take} />
             <ModeMenu />
-            <ModelMenu />
+            <ProfileMenu />
             <EffortMenu />
             <div className="flex-1" />
-            {thread.autoApprove ? <AutoApproveChip /> : null}
             {running && !ready ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -193,9 +199,12 @@ export function Composer() {
 const NONE: Attachment[] = [];
 
 const MODES: { value: AgentMode; label: string; hint: string }[] = [
-  { value: "auto", label: "Auto", hint: "Picks plan or build for each request" },
-  { value: "plan", label: "Plan", hint: "Investigates and plans, changes nothing" },
-  { value: "build", label: "Build", hint: "Makes the change straight away" },
+  {
+    value: "auto",
+    label: "Auto",
+    hint: "A reviewer model checks anything beyond edits in this project before it runs",
+  },
+  { value: "yolo", label: "YOLO", hint: "Everything runs without review or asking" },
 ];
 
 const EFFORTS: { value: ReasoningEffort | null; label: string }[] = [
@@ -229,8 +238,9 @@ function ModeMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Pill>
-          <span className={cn(mode !== "auto" && "text-brand")}>{current.label}</span>
+        <Pill title={mode === "yolo" ? "Everything runs without review" : undefined}>
+          {mode === "yolo" ? <ShieldAlertIcon className="size-3.5 text-warning" /> : null}
+          <span className={cn(mode === "yolo" && "text-warning")}>{current.label}</span>
         </Pill>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-64">
@@ -253,31 +263,47 @@ function ModeMenu() {
   );
 }
 
-function ModelMenu() {
+function ProfileMenu() {
+  const profile = useAbacus((state) => state.thread?.profile ?? "");
   const model = useAbacus((state) => state.thread?.model ?? "");
-  const models = useAbacus((state) => state.models);
+  const profiles = useAbacus((state) => state.profiles);
   const running = useAbacus((state) => Boolean(state.thread?.turnId));
-  const setModel = useAbacus((state) => state.setModel);
+  const selectProfile = useAbacus((state) => state.selectProfile);
+  const setView = useAbacus((state) => state.setView);
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={running || models.length === 0}>
-        <Pill title={running ? "Change the model between turns" : undefined}>
-          <span className="max-w-48 truncate">{model || "Model"}</span>
+      <DropdownMenuTrigger asChild disabled={running}>
+        <Pill title={running ? "Change the profile between turns" : model}>
+          <span className="max-w-48 truncate">{profile || model || "Profile"}</span>
         </Pill>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="max-h-80 w-72 overflow-y-auto">
-        <DropdownMenuLabel className="abacus-label">Model</DropdownMenuLabel>
-        {models.map((entry) => (
+      <DropdownMenuContent align="start" side="top" className="max-h-96 w-80 overflow-y-auto">
+        <DropdownMenuLabel className="abacus-label">Profile</DropdownMenuLabel>
+        {profiles.map((entry) => (
           <DropdownMenuItem
-            key={entry.id}
-            onSelect={() => void setModel(entry.id)}
-            className="gap-2.5"
+            key={entry.name}
+            onSelect={() => void selectProfile(entry.name)}
+            className="items-start gap-2.5"
           >
-            <CheckIcon className={cn("size-3.5 shrink-0", entry.id !== model && "invisible")} />
-            <span className="truncate font-mono text-ui-sm">{entry.id}</span>
+            <CheckIcon
+              className={cn("mt-0.5 size-3.5 shrink-0", entry.name !== profile && "invisible")}
+            />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate">{entry.name}</span>
+              {entry.model !== entry.name ? (
+                <span className="truncate font-mono text-ui-sm text-foreground-subtlest">
+                  {entry.model}
+                </span>
+              ) : null}
+            </span>
           </DropdownMenuItem>
         ))}
+        {profiles.length > 0 ? <DropdownMenuSeparator /> : null}
+        <DropdownMenuItem onSelect={() => setView("settings")} className="gap-2.5">
+          <Settings2Icon className="size-3.5" />
+          Profiles and providers…
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -314,26 +340,5 @@ function EffortMenu() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function AutoApproveChip() {
-  const setAutoApprove = useAbacus((state) => state.setAutoApprove);
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={() => void setAutoApprove(false)}
-          className="mr-1 flex items-center gap-1 rounded-full px-2 py-1 text-ui-sm text-warning hover:bg-warning/10"
-        >
-          <ShieldCheckIcon className="size-3.5" />
-          Auto-approve
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        Tools run without asking. Click to have abacus ask first again.
-      </TooltipContent>
-    </Tooltip>
   );
 }

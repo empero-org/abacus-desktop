@@ -1,7 +1,7 @@
 // The `/` commands this window carries out itself: switching mode, effort,
-// model or theme, a new thread, settings, compaction, renaming. Anything else
-// that starts with a slash goes to the app server, which knows the skills,
-// plugin commands and `/btw`.
+// profile or theme, a new thread, settings, compaction, renaming. Anything
+// else that starts with a slash goes to the app server, which knows the
+// skills, plugin commands and `/btw`.
 
 import { EFFORT_OPTIONS, MODE_OPTIONS, THEME_OPTIONS } from "./completion.js";
 import type { AgentMode, ReasoningEffort } from "./protocol.js";
@@ -34,9 +34,6 @@ export async function runWindowCommand(
     case "compact":
       await state.compact();
       return true;
-    case "plan":
-      await state.setMode(state.thread?.mode === "plan" ? "auto" : "plan");
-      return true;
     case "mode": {
       const mode = choose(MODE_OPTIONS, "mode");
       if (mode) await state.setMode(mode as AgentMode);
@@ -53,10 +50,24 @@ export async function runWindowCommand(
       if (theme) chooseColorScheme(theme as ColorScheme);
       return true;
     }
-    case "model":
-      if (!argument) state.setView("settings");
-      else await state.setModel(argument);
+    // `/model` is what the terminal used to call it.
+    case "profile":
+    case "model": {
+      if (!argument) {
+        state.setView("settings");
+        return true;
+      }
+      const profile = findProfile(state, argument);
+      if (profile) await state.selectProfile(profile);
+      else
+        state.notify(
+          `No profile named ${argument}. Add one in settings, or choose one of: ${state.profiles
+            .map((entry) => entry.name)
+            .join(", ")}.`,
+          "warning",
+        );
       return true;
+    }
     case "rename":
       if (!argument) state.notify("Give the thread a name: /rename <name>.", "warning");
       else await state.renameThread(argument);
@@ -64,6 +75,15 @@ export async function runWindowCommand(
     default:
       return false;
   }
+}
+
+/** A profile by its name, or else the one profile running that `provider/model`. */
+export function findProfile(state: Pick<AbacusState, "profiles">, name: string): string | null {
+  const wanted = name.trim().toLowerCase();
+  const named = state.profiles.find((entry) => entry.name.toLowerCase() === wanted);
+  if (named) return named.name;
+  const running = state.profiles.filter((entry) => entry.model.toLowerCase() === wanted);
+  return running.length === 1 ? running[0]!.name : null;
 }
 
 /**

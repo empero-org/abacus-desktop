@@ -10,7 +10,7 @@ import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
 /** The oldest CLI that speaks the app-server protocol this window renders. */
-export const MINIMUM_CLI_VERSION = "0.7.0";
+export const MINIMUM_CLI_VERSION = "0.7.1";
 
 const EXE = process.platform === "win32" ? ".exe" : "";
 

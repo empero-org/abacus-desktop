@@ -35,7 +35,7 @@ export function useCompletion(
   run: (text: string) => void,
 ): Completion {
   const commands = useAbacus((state) => state.commands);
-  const models = useAbacus((state) => state.models);
+  const profiles = useAbacus((state) => state.profiles);
   const searchFiles = useAbacus((state) => state.searchFiles);
   const [caret, setCaret] = useState(0);
   const [selected, setSelected] = useState(0);
@@ -45,15 +45,16 @@ export function useCompletion(
   const mention = useMemo(() => mentionAt(draft, caret), [draft, caret]);
   const query = mention ? mention.query : null;
   const options = useMemo(() => {
-    const ids = models.map((model) => model.id);
+    const names = profiles.map((profile) => profile.name);
     return (name: string) =>
       ({
         mode: MODE_OPTIONS,
         effort: EFFORT_OPTIONS,
         theme: THEME_OPTIONS,
-        model: ids.length ? ids : undefined,
+        profile: names.length ? names : undefined,
+        model: names.length ? names : undefined,
       })[name];
-  }, [models]);
+  }, [profiles]);
 
   // Files are searched by the app server; the latest query wins.
   useEffect(() => {

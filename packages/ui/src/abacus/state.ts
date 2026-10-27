@@ -8,7 +8,12 @@ import type {
   ApprovalDecision,
   BackgroundTask,
   Item,
-  ModelEntry,
+  ModelCardEntry,
+  PresetEntry,
+  ProfileDraft,
+  ProfileEntry,
+  ProviderDraft,
+  ProviderEntry,
   ReasoningEffort,
   ThreadSummary,
 } from "./protocol.js";
@@ -37,7 +42,14 @@ export interface AbacusState {
   thread: ThreadView | null;
   /** The main pane: the open thread, or settings. */
   view: "chat" | "settings";
-  models: ModelEntry[];
+  /** No provider or profile yet: the window sets one up before the first turn. */
+  needsSetup: boolean;
+  profiles: ProfileEntry[];
+  providers: ProviderEntry[];
+  /** The ready-made providers to start from. */
+  presets: PresetEntry[];
+  /** Each provider's models, by provider id, once asked for. */
+  catalogs: Record<string, ModelCardEntry[]>;
   notices: Notice[];
   crash: { code: number | null; tail: string } | null;
   /** The composer's draft, kept per thread so switching threads does not lose it. */
@@ -72,10 +84,22 @@ export interface AbacusState {
   answerApproval(id: string | number, decision: ApprovalDecision): Promise<void>;
   answerQuestion(id: string | number, selected: string[], custom?: string): Promise<void>;
 
-  setModel(model: string): Promise<void>;
+  /** Run another profile, from this session on and as the default. */
+  selectProfile(name: string): Promise<void>;
+  /** Add or change a profile; its name, or null when it could not be saved. */
+  saveProfile(draft: ProfileDraft): Promise<string | null>;
+  removeProfile(name: string): Promise<void>;
+  /** Add or change a provider; its id, or null when it could not be saved. */
+  saveProvider(draft: ProviderDraft): Promise<string | null>;
+  removeProvider(id: string): Promise<void>;
+  /** A provider's models, fetched again when `refresh`; the reason when it would not list them. */
+  providerModels(
+    id: string,
+    refresh?: boolean,
+  ): Promise<{ models: ModelCardEntry[]; error: string | null }>;
+  refreshProfiles(): Promise<void>;
   setMode(mode: AgentMode): Promise<void>;
   setReasoningEffort(effort: ReasoningEffort | null): Promise<void>;
-  setAutoApprove(on: boolean): Promise<void>;
   setDraft(threadId: string, text: string): void;
   attach(files: File[]): Promise<void>;
   detach(id: string): void;

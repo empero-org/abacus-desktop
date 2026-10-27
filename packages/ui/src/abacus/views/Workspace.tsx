@@ -1,7 +1,7 @@
 // The window once abacus is installed: projects and sessions on the left; in
-// the middle the open thread, settings, or the start page when no project is
-// open, with the terminal pane beneath; the turn's changed files on the right
-// when asked for.
+// the middle the open thread, settings, the start page when no project is
+// open, or setup until a provider is connected, with the terminal pane
+// beneath; the turn's changed files on the right when asked for.
 
 import { useEffect, useState } from "react";
 import { cn } from "@/components/lib/utils.js";
@@ -14,6 +14,7 @@ import { Conversation } from "./Conversation.js";
 import { Crashed } from "./Crashed.js";
 import { Home } from "./Home.js";
 import { Settings } from "./Settings.js";
+import { Setup } from "./Setup.js";
 import { Sidebar } from "./Sidebar.js";
 import { TasksPanel, useTasksPanel } from "./TasksPanel.js";
 import { TerminalPane } from "./TerminalPane.js";
@@ -22,6 +23,7 @@ import { TopBar } from "./TopBar.js";
 export function Workspace() {
   const phase = useAbacus((state) => state.phase);
   const view = useAbacus((state) => state.view);
+  const needsSetup = useAbacus((state) => state.needsSetup);
   const emptyThread = useAbacus(
     (state) => state.thread !== null && state.thread.items.length === 0 && !state.thread.turnId,
   );
@@ -140,6 +142,8 @@ export function Workspace() {
                 <Crashed />
               ) : phase === "connecting" ? (
                 <Connecting />
+              ) : needsSetup ? (
+                <Setup />
               ) : (
                 <>
                   <Conversation />

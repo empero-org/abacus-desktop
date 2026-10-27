@@ -26,19 +26,26 @@ change made in the app is the change the terminal UI would make.
 - **The composer.** `/` completes commands, skills and plugin commands, `@`
   completes files in the project. Paste, drop or attach images and text files.
   Type while the agent works to steer it, or stop it with Esc.
-- **Approvals and questions.** Allow a command or an edit once or for the
-  session, or answer the agent's question, right above the composer.
+- **Profiles and providers.** Switch profiles from the composer. Add providers
+  in Settings (any OpenAI-compatible or Anthropic API, with its key, headers
+  and body fields) and make profiles from the models they serve. On first run
+  the window connects a provider and picks a model with you.
+- **Auto and YOLO.** In Auto, a reviewer model checks anything beyond edits in
+  the project before it runs; when it cannot decide, the action waits for you
+  above the composer, as does any question the agent asks. YOLO runs
+  everything.
 - **Changes.** The diff of the working tree after a turn.
 - **Terminal.** Shells in the project, in tabs, under the conversation
   (Ctrl+`).
 - **Browser.** A browser pane beside the conversation, with tabs and an
   address bar, that finds your dev server. abacus can use it too: open pages,
-  read them, click, type and take screenshots while you watch, asking before
-  it clicks or types. Pages run in their own session, apart from the app.
+  read them, click, type and take screenshots while you watch, with clicks and
+  typing checked like any other action. Pages run in their own session, apart
+  from the app.
 - **Background tasks.** The subagents abacus started, what each is doing, and
   its transcript, in a panel you can expand or stop them from.
-- **Settings.** Theme, model, reasoning effort, mode, approvals, and your sync
-  status.
+- **Settings.** Theme, profile, reasoning effort, mode, profiles and
+  providers, and your sync status.
 
 ## Install
 
@@ -72,7 +79,7 @@ warnings; a downloaded copy needs System Settings → Privacy & Security → Ope
 Anyway the first time on macOS, and More info → Run anyway if SmartScreen
 stops it on Windows.
 
-The app needs the abacus CLI 0.7.0 or newer. It looks for `abacus` in
+The app needs the abacus CLI 0.7.1 or newer. It looks for `abacus` in
 `~/.local/bin`, `~/.cargo/bin`, the usual system locations and your `PATH`;
 `ABACUS_BIN` points it at a specific binary.
 

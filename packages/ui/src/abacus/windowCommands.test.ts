@@ -1,17 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ReasoningEffort } from "./protocol.js";
 import type { AbacusState } from "./state.js";
-import { nextEffort, runWindowCommand } from "./windowCommands.js";
+import { findProfile, nextEffort, runWindowCommand } from "./windowCommands.js";
 
 function fakeState() {
   return {
     thread: { mode: "auto" },
+    profiles: [
+      { name: "kojo/kojo", model: "kojo/kojo" },
+      { name: "fast", model: "llama/qwen-3-4b" },
+    ],
     newThread: vi.fn(async () => {}),
     setView: vi.fn(),
     compact: vi.fn(async () => {}),
     setMode: vi.fn(async () => {}),
     setReasoningEffort: vi.fn(async () => {}),
-    setModel: vi.fn(async () => {}),
+    selectProfile: vi.fn(async () => {}),
     renameThread: vi.fn(async () => {}),
     notify: vi.fn(),
   } as unknown as AbacusState & Record<string, ReturnType<typeof vi.fn>>;
@@ -20,21 +24,34 @@ function fakeState() {
 describe("window commands", () => {
   it("carries out the window's commands with their arguments", async () => {
     const state = fakeState();
-    expect(await runWindowCommand(state, "mode", "Plan")).toBe(true);
-    expect(state.setMode).toHaveBeenCalledWith("plan");
+    expect(await runWindowCommand(state, "mode", "YOLO")).toBe(true);
+    expect(state.setMode).toHaveBeenCalledWith("yolo");
     await runWindowCommand(state, "effort", "auto");
     expect(state.setReasoningEffort).toHaveBeenCalledWith(null);
-    await runWindowCommand(state, "plan", "");
-    expect(state.setMode).toHaveBeenLastCalledWith("plan");
-    await runWindowCommand(state, "model", "");
+    await runWindowCommand(state, "profile", "");
     expect(state.setView).toHaveBeenCalledWith("settings");
+    await runWindowCommand(state, "profile", "Fast");
+    expect(state.selectProfile).toHaveBeenCalledWith("fast");
   });
 
   it("explains a bad argument instead of guessing", async () => {
     const state = fakeState();
-    expect(await runWindowCommand(state, "mode", "fast")).toBe(true);
+    expect(await runWindowCommand(state, "mode", "plan")).toBe(true);
     expect(state.setMode).not.toHaveBeenCalled();
-    expect(state.notify).toHaveBeenCalledWith("Choose a mode: auto, plan, build.", "warning");
+    expect(state.notify).toHaveBeenCalledWith("Choose a mode: auto, yolo.", "warning");
+    await runWindowCommand(state, "profile", "nope");
+    expect(state.selectProfile).not.toHaveBeenCalled();
+    expect(state.notify).toHaveBeenLastCalledWith(
+      expect.stringContaining("kojo/kojo, fast"),
+      "warning",
+    );
+  });
+
+  it("finds a profile by name, or by the one model it runs", () => {
+    const state = fakeState();
+    expect(findProfile(state, "FAST")).toBe("fast");
+    expect(findProfile(state, "llama/qwen-3-4b")).toBe("fast");
+    expect(findProfile(state, "llama/other")).toBeNull();
   });
 
   it("leaves skills, plugin commands and /btw to the app server", async () => {

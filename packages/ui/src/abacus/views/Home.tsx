@@ -30,7 +30,7 @@ export function Home() {
           </h1>
           <p className="text-ui-lg text-foreground-subtle">
             Open a project folder and abacus works in it: reading, changing and running your code,
-            and asking before anything it should not do on its own.
+            with anything risky reviewed before it runs.
           </p>
           <div>
             <Button size="lg" onClick={() => void pickAndOpen()} className="gap-2">

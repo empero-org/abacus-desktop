@@ -67,8 +67,8 @@ function EmptyThread() {
         ?
       </h1>
       <p className="max-w-md text-ui-base text-foreground-subtle">
-        Describe a change, ask about the code, or paste an error. Abacus asks before running
-        anything it should not do on its own.
+        Describe a change, ask about the code, or paste an error. In Auto, anything beyond edits in
+        this project is reviewed before it runs.
       </p>
     </div>
   );

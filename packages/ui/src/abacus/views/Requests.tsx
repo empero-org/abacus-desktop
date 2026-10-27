@@ -1,5 +1,7 @@
 // What the agent is blocked on: an approval for a command or an edit, or a
-// question. One at a time, oldest first; the rest wait their turn.
+// question. One at a time, oldest first; the rest wait their turn. In AUTO a
+// reviewer model decides most actions, so an approval only reaches the person
+// when it could not.
 
 import { useState, type ReactNode } from "react";
 import { CircleHelpIcon, FilePenIcon, GlobeIcon, SquareTerminalIcon } from "lucide-react";
@@ -79,19 +81,14 @@ function ApprovalCard({
         {params.command}
       </pre>
       {params.reason ? <p className="text-ui-sm text-foreground-subtle">{params.reason}</p> : null}
+      <p className="text-ui-sm text-foreground-subtlest">
+        The safety review could not decide on this one, so it is your call.
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="lg" onClick={() => decide("accept")} disabled={busy} autoFocus>
           Allow
         </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          onClick={() => decide("acceptForSession")}
-          disabled={busy}
-        >
-          Allow for this session
-        </Button>
-        <Button size="lg" variant="ghost" onClick={() => decide("decline")} disabled={busy}>
+        <Button size="lg" variant="outline" onClick={() => decide("decline")} disabled={busy}>
           Deny
         </Button>
         <div className="flex-1" />

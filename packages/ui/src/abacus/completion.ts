@@ -7,7 +7,7 @@ export interface CommandEntry {
   description: string;
   /** builtin: handled by this window or the app server; skill and plugin: expand to a prompt. */
   kind: "builtin" | "skill" | "plugin";
-  /** Whether the command wants text after it (`/mode plan`, `/btw …`). */
+  /** Whether the command wants text after it (`/mode yolo`, `/btw …`). */
   takesArgument?: boolean;
 }
 
@@ -16,13 +16,12 @@ export const WINDOW_COMMANDS: CommandEntry[] = [
   { name: "new", description: "Start a new thread", kind: "builtin" },
   {
     name: "mode",
-    description: "Set auto, plan or build mode",
+    description: "Auto reviews risky actions; YOLO runs everything",
     kind: "builtin",
     takesArgument: true,
   },
-  { name: "plan", description: "Switch plan mode on or off", kind: "builtin" },
+  { name: "profile", description: "Switch the profile", kind: "builtin", takesArgument: true },
   { name: "effort", description: "Set the reasoning effort", kind: "builtin", takesArgument: true },
-  { name: "model", description: "Switch the model", kind: "builtin", takesArgument: true },
   { name: "compact", description: "Compact the conversation's context", kind: "builtin" },
   { name: "rename", description: "Rename this thread", kind: "builtin", takesArgument: true },
   {
@@ -37,7 +36,7 @@ export const WINDOW_COMMANDS: CommandEntry[] = [
 /** Commands the app server knows but the window passes through as text. */
 const SERVER_ARGUMENTS = new Set(["btw"]);
 
-export const MODE_OPTIONS = ["auto", "plan", "build"];
+export const MODE_OPTIONS = ["auto", "yolo"];
 export const EFFORT_OPTIONS = ["auto", "minimal", "low", "medium", "high", "xhigh", "max"];
 export const THEME_OPTIONS = ["dark", "light", "system"];
 
@@ -83,7 +82,7 @@ export interface CompletionState {
 
 /**
  * Commands and their arguments. A command completes while the caret is still
- * in its name; an argument from a fixed set (mode, effort, theme, model)
+ * in its name; an argument from a fixed set (mode, effort, theme, profile)
  * completes after the space.
  */
 export function commandCompletion(

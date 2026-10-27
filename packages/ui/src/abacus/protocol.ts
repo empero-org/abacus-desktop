@@ -6,7 +6,8 @@
 
 export const PROTOCOL_VERSION = 1;
 
-export type AgentMode = "auto" | "plan" | "build";
+/** AUTO reviews risky actions before they run; YOLO runs everything. */
+export type AgentMode = "auto" | "yolo";
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface TokenUsage {
@@ -46,10 +47,10 @@ export type Item =
 export interface ThreadSnapshot {
   threadId: string;
   name: string;
+  /** `provider/model`. */
   model: string;
   profile: string;
   mode: AgentMode;
-  autoApprove: boolean;
   reasoningEffort: ReasoningEffort | null;
   workspace: string;
   contextWindow: number | null;
@@ -64,6 +65,8 @@ export interface InitializeResult {
   protocolVersion: number;
   serverInfo: { name: string; version: string };
   workspace: string;
+  /** No provider yet: the window sets one up before the first turn. */
+  needsSetup?: boolean;
   capabilities: Record<string, boolean>;
   thread: ThreadSnapshot;
 }
@@ -75,18 +78,117 @@ export interface ChangedFile {
   binary: boolean;
 }
 
+/** What the session runs, as `config/value/write` and the profile methods answer. */
 export interface ConfigValueResult {
+  profile: string;
   model: string;
   mode: AgentMode;
-  autoApprove: boolean;
   reasoningEffort: ReasoningEffort | null;
+  contextWindow?: number | null;
+  needsSetup?: boolean;
 }
 
-export type WritableConfigKey = "model" | "reasoning_effort" | "mode" | "autoApprove";
+export type WritableConfigKey = "profile" | "reasoning_effort" | "mode";
 
-export interface ModelEntry {
+export type Protocol = "chat-completions" | "responses" | "anthropic";
+
+/** A profile: a `provider/model` and the settings it runs with. */
+export interface ProfileEntry {
+  name: string;
+  model: string;
+  provider: string;
+  active: boolean;
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  reasoningEffort: ReasoningEffort | null;
+  toolFormat: string | null;
+  roles: Record<string, string>;
+}
+
+/** A provider: an API connection and where its key comes from. */
+export interface ProviderEntry {
   id: string;
-  selected: boolean;
+  name: string;
+  baseUrl: string;
+  protocol: Protocol;
+  apiKeyEnv: string | null;
+  /** Where the key comes from, in words — never the key. */
+  key: string;
+  keyMissing: boolean;
+  hasStoredKey: boolean;
+  authHeader: string | null;
+  authFormat: string | null;
+  tokenCommand: string;
+  headers: Record<string, string>;
+  /** JSON merged over every request body. */
+  body: string;
+  remove: string[];
+  systemPrefix: string | null;
+  requestUrl: string | null;
+  modelsUrl: string | null;
+  models: string[];
+  local: boolean;
+  modelCount: number | null;
+  profiles: string[];
+}
+
+/** A ready-made provider to start from. */
+export interface PresetEntry {
+  id: string;
+  name: string;
+  baseUrl: string;
+  protocol: Protocol;
+  keyVariable: string | null;
+  keyFound: boolean;
+  local: boolean;
+  hint: string;
+}
+
+/** A model a provider serves. `id` is `provider/model`. */
+export interface ModelCardEntry {
+  id: string;
+  model: string;
+  name: string | null;
+  contextLength: number | null;
+  maxOutputTokens: number | null;
+  inputCost: number | null;
+  outputCost: number | null;
+  vision: boolean;
+  reasoning: boolean;
+}
+
+/** What `provider/save` takes; fields left out stay as they are. */
+export interface ProviderDraft {
+  id?: string;
+  preset?: string;
+  name?: string;
+  baseUrl?: string;
+  protocol?: Protocol;
+  apiKey?: string;
+  apiKeyEnv?: string;
+  authHeader?: string;
+  authFormat?: string;
+  tokenCommand?: string;
+  headers?: string;
+  body?: string;
+  remove?: string;
+  systemPrefix?: string;
+  requestUrl?: string;
+  modelsUrl?: string;
+  models?: string;
+}
+
+/** What `profile/save` takes. Limits and effort take null for "detect / default". */
+export interface ProfileDraft {
+  name?: string;
+  previousName?: string;
+  model?: string;
+  contextWindow?: number | string | null;
+  maxOutputTokens?: number | string | null;
+  reasoningEffort?: ReasoningEffort | null;
+  /** Role → `provider/model`; an empty string hands the role back to its fallback. */
+  roles?: Record<string, string>;
+  select?: boolean;
 }
 
 /** A background worker (a subagent the agent started), as `tasks/list` reports it. */
@@ -114,6 +216,7 @@ export interface Notifications {
   "thread/started": { threadId: string };
   "thread/name/updated": { threadId: string; name: string };
   "thread/mode/updated": { threadId: string; mode: AgentMode; reason?: string };
+  "thread/profile/updated": ConfigValueResult;
   "thread/tokenUsage/updated": {
     threadId: string;
     tokensUsed: number;
@@ -136,7 +239,8 @@ export type NotificationMethod = keyof Notifications;
 
 // ---- server -> client requests (the agent is blocked on a person) -------
 
-export type ApprovalDecision = "accept" | "acceptForSession" | "decline" | "cancel";
+/** Only asked when AUTO's safety review could not decide. */
+export type ApprovalDecision = "accept" | "decline" | "cancel";
 
 export interface ApprovalRequestParams {
   threadId: string;

@@ -15,7 +15,7 @@ const server: CommandEntry[] = [
   { name: "review", description: "Review code", kind: "skill" },
 ];
 const commands = mergeCommands(server);
-const options = (name: string) => (name === "mode" ? ["auto", "plan", "build"] : undefined);
+const options = (name: string) => (name === "mode" ? ["auto", "yolo"] : undefined);
 
 describe("commands", () => {
   it("lists the window's commands first and the server's once each", () => {
@@ -26,8 +26,15 @@ describe("commands", () => {
     expect(commands.find((command) => command.name === "btw")?.takesArgument).toBe(true);
   });
 
+  it("offers /profile and no longer /plan or /model", () => {
+    const names = commands.map((command) => command.name);
+    expect(names).toContain("profile");
+    expect(names).not.toContain("plan");
+    expect(names).not.toContain("model");
+  });
+
   it("parses what a draft asks for", () => {
-    expect(parseCommand("/mode plan")).toEqual({ name: "mode", argument: "plan" });
+    expect(parseCommand("/mode yolo")).toEqual({ name: "mode", argument: "yolo" });
     expect(parseCommand("  /New  ")).toEqual({ name: "new", argument: "" });
     expect(parseCommand("/review the parser\nand tests")).toEqual({
       name: "review",
@@ -48,11 +55,11 @@ describe("commands", () => {
   });
 
   it("completes an argument from a fixed set once the name is typed", () => {
-    const state = commandCompletion("/mode pl", 8, commands, options)!;
+    const state = commandCompletion("/mode yo", 8, commands, options)!;
     expect(state.kind).toBe("argument");
-    expect(state.suggestions.map((item) => item.label)).toEqual(["plan"]);
-    expect(applySuggestion("/mode pl", state.suggestions[0]!)).toEqual({
-      text: "/mode plan",
+    expect(state.suggestions.map((item) => item.label)).toEqual(["yolo"]);
+    expect(applySuggestion("/mode yo", state.suggestions[0]!)).toEqual({
+      text: "/mode yolo",
       caret: 10,
     });
     expect(commandCompletion("/review the", 11, commands, options)).toBeNull();

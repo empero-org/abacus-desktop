@@ -1,6 +1,7 @@
-// Settings: the window's look, the agent's defaults for the open project, Abacus
-// Sync, and what is installed. Agent settings are abacus's own (the profile in
-// ~/.abacus), so a change here is the change `/config` would make in the TUI.
+// Settings: the window's look, the agent (its profile, effort and mode), the
+// profiles and providers, Abacus Sync, and what is installed. Agent settings
+// are abacus's own (~/.abacus/config.toml), so a change here is the change
+// `/config` would make in the terminal.
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { MonitorIcon, MoonIcon, RefreshCwIcon, SunIcon, XIcon } from "lucide-react";
@@ -12,9 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.js";
-import { Switch } from "@/components/ui/switch.js";
 import { useAbacus } from "../context.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
+import { ProfileList } from "./Profiles.js";
+import { ProviderList } from "./Providers.js";
 import { chooseColorScheme, useColorSchemeChoice, type ColorScheme } from "../useColorScheme.js";
 import {
   chooseContentWidth,
@@ -152,9 +154,13 @@ function Appearance() {
 
 const MODES: { value: AgentMode; label: string }[] = [
   { value: "auto", label: "Auto" },
-  { value: "plan", label: "Plan" },
-  { value: "build", label: "Build" },
+  { value: "yolo", label: "YOLO" },
 ];
+
+const MODE_HINTS: Record<AgentMode, string> = {
+  auto: "A reviewer model checks anything beyond edits in this project; you are asked only when it cannot decide.",
+  yolo: "Everything runs without review or asking, for this session.",
+};
 
 const EFFORTS: { value: ReasoningEffort | "default"; label: string }[] = [
   { value: "default", label: "Model default" },
@@ -169,80 +175,89 @@ const EFFORTS: { value: ReasoningEffort | "default"; label: string }[] = [
 function Agent() {
   const thread = useAbacus((state) => state.thread);
   const ready = useAbacus((state) => state.phase === "ready");
-  const models = useAbacus((state) => state.models);
-  const setModel = useAbacus((state) => state.setModel);
+  const profiles = useAbacus((state) => state.profiles);
+  const selectProfile = useAbacus((state) => state.selectProfile);
   const setMode = useAbacus((state) => state.setMode);
   const setReasoningEffort = useAbacus((state) => state.setReasoningEffort);
-  const setAutoApprove = useAbacus((state) => state.setAutoApprove);
   const running = Boolean(thread?.turnId);
 
   if (!thread || !ready) {
     return (
-      <Section title="Agent" hint="Open a project to change the model, mode and approvals.">
+      <Section title="Agent" hint="Open a project to change profiles, providers and the mode.">
         <div className="px-4 py-3.5 text-ui-sm text-foreground-subtlest">No project open.</div>
       </Section>
     );
   }
 
   return (
-    <Section title="Agent" hint="Saved to your abacus profile, so the terminal uses them too.">
-      <Row label="Model" hint={running ? "Change it between turns." : undefined}>
-        <Select
-          value={thread.model}
-          onValueChange={(value) => void setModel(value)}
-          disabled={running || models.length === 0}
-        >
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Model" />
-          </SelectTrigger>
-          <SelectContent className="max-h-80">
-            {(models.some((entry) => entry.id === thread.model)
-              ? models
-              : [{ id: thread.model, selected: true }, ...models]
-            ).map((entry) => (
-              <SelectItem key={entry.id} value={entry.id} className="font-mono text-ui-sm">
-                {entry.id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label="Reasoning effort">
-        <Select
-          value={thread.reasoningEffort ?? "default"}
-          onValueChange={(value) =>
-            void setReasoningEffort(value === "default" ? null : (value as ReasoningEffort))
+    <>
+      <Section
+        title="Agent"
+        hint="The profile and effort are saved to your abacus settings, so the terminal uses them too."
+      >
+        <Row
+          label="Profile"
+          hint={
+            running
+              ? "Change it between turns."
+              : thread.model !== thread.profile
+                ? thread.model
+                : undefined
           }
         >
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {EFFORTS.map((entry) => (
-              <SelectItem key={entry.value} value={entry.value}>
-                {entry.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row
-        label="Mode"
-        hint="Plan investigates without changing anything; Build goes straight to changes."
+          <Select
+            value={thread.profile}
+            onValueChange={(value) => void selectProfile(value)}
+            disabled={running || profiles.length === 0}
+          >
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Profile" />
+            </SelectTrigger>
+            <SelectContent className="max-h-80">
+              {profiles.map((entry) => (
+                <SelectItem key={entry.name} value={entry.name}>
+                  {entry.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Reasoning effort">
+          <Select
+            value={thread.reasoningEffort ?? "default"}
+            onValueChange={(value) =>
+              void setReasoningEffort(value === "default" ? null : (value as ReasoningEffort))
+            }
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EFFORTS.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Mode" hint={MODE_HINTS[thread.mode]}>
+          <Segmented value={thread.mode} options={MODES} onChange={(mode) => void setMode(mode)} />
+        </Row>
+      </Section>
+      <Section
+        title="Profiles"
+        hint="A model and the settings it runs with. The composer switches between them."
       >
-        <Segmented value={thread.mode} options={MODES} onChange={(mode) => void setMode(mode)} />
-      </Row>
-      <Row
-        label="Approve tools automatically"
-        hint="Commands and edits run without asking, for this session."
+        <ProfileList />
+      </Section>
+      <Section
+        title="Providers"
+        hint="The APIs abacus talks to. Their models are found by themselves and named provider/model."
       >
-        <Switch
-          checked={thread.autoApprove}
-          onCheckedChange={(on) => void setAutoApprove(on)}
-          className="data-unchecked:bg-foreground/15"
-        />
-      </Row>
-    </Section>
+        <ProviderList />
+      </Section>
+    </>
   );
 }
 

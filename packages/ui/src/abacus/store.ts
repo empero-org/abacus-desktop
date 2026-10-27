@@ -20,6 +20,7 @@ import { inputPart, isAttachableImage, readAttachment, type Attachment } from ".
 import { mergeCommands, parseCommand } from "./completion.js";
 import { addPending, applyNotification, resolvePending, threadFromSnapshot } from "./thread.js";
 import { serverLists } from "./lists.js";
+import { profileActions } from "./profileActions.js";
 import { runWindowCommand } from "./windowCommands.js";
 
 import type { AbacusState } from "./state.js";
@@ -38,7 +39,11 @@ function errorMessage(error: unknown): string {
 
 export function createAbacusStore(bridge: AbacusBridge) {
   return create<AbacusState>((set, get) => {
-    const { refreshModels, refreshCommands, refreshTasks } = serverLists(bridge, get, set);
+    const { refreshProfiles, refreshPresets, refreshCommands, refreshTasks } = serverLists(
+      bridge,
+      get,
+      set,
+    );
     const guard = async (work: () => Promise<void>) => {
       try {
         await work();
@@ -46,20 +51,33 @@ export function createAbacusStore(bridge: AbacusBridge) {
         get().notify(errorMessage(error), "error");
       }
     };
+    // As `guard`, for the actions whose result the caller goes on with.
+    const attempt = async <T>(work: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await work();
+      } catch (error) {
+        get().notify(errorMessage(error), "error");
+        return null;
+      }
+    };
 
     const applyConfig = (result: ConfigValueResult) => {
+      if (result.needsSetup !== undefined) set({ needsSetup: result.needsSetup });
       const thread = get().thread;
       if (!thread) return;
       set({
         thread: {
           ...thread,
+          profile: result.profile,
           model: result.model,
           mode: result.mode,
-          autoApprove: result.autoApprove,
           reasoningEffort: result.reasoningEffort,
+          contextWindow: result.contextWindow ?? thread.contextWindow,
         },
       });
     };
+
+    const helpers = { guard, attempt, applyConfig, refreshProfiles, errorMessage };
 
     const onMessage = (message: ServerMessage) => {
       if (message.kind === "exit") {
@@ -95,6 +113,13 @@ export function createAbacusStore(bridge: AbacusBridge) {
         set({ tasks: (message.params as { tasks: BackgroundTask[] }).tasks });
         return;
       }
+      if (message.method === "thread/profile/updated") {
+        // Which profile is active, or what it runs, changed: here or in a
+        // method this window called.
+        const update = message.params as ConfigValueResult;
+        if (update.needsSetup !== undefined) set({ needsSetup: update.needsSetup });
+        void refreshProfiles();
+      }
       const thread = get().thread;
       if (thread) set({ thread: applyNotification(thread, message.method, message.params) });
       if (message.method === "turn/completed" || message.method === "thread/name/updated") {
@@ -115,7 +140,11 @@ export function createAbacusStore(bridge: AbacusBridge) {
       projects: null,
       thread: null,
       view: "chat",
-      models: [],
+      needsSetup: false,
+      profiles: [],
+      providers: [],
+      presets: [],
+      catalogs: {},
       notices: [],
       crash: null,
       drafts: {},
@@ -164,12 +193,15 @@ export function createAbacusStore(bridge: AbacusBridge) {
             workspace,
             serverVersion: init.serverInfo.version,
             capabilities: init.capabilities ?? {},
+            needsSetup: init.needsSetup ?? false,
+            catalogs: {},
             thread: threadFromSnapshot(init.thread),
             phase: "ready",
           });
           await Promise.all([
             get().refreshThreads(),
-            refreshModels(),
+            refreshProfiles(),
+            refreshPresets(),
             get().refreshProjects(),
             refreshCommands(),
             refreshTasks(),
@@ -307,16 +339,9 @@ export function createAbacusStore(bridge: AbacusBridge) {
           if (thread) set({ thread: resolvePending(thread, id) });
         }),
 
-      setModel: (model) =>
-        guard(async () => {
-          applyConfig(
-            await bridge.request<ConfigValueResult>("config/value/write", {
-              key: "model",
-              value: model,
-            }),
-          );
-          await refreshModels();
-        }),
+      ...profileActions(bridge, get, set, helpers),
+      refreshProfiles,
+
       setMode: (mode) =>
         guard(async () =>
           applyConfig(
@@ -332,16 +357,6 @@ export function createAbacusStore(bridge: AbacusBridge) {
             await bridge.request<ConfigValueResult>("config/value/write", {
               key: "reasoning_effort",
               value: effort,
-            }),
-          ),
-        ),
-
-      setAutoApprove: (on) =>
-        guard(async () =>
-          applyConfig(
-            await bridge.request<ConfigValueResult>("config/value/write", {
-              key: "autoApprove",
-              value: on,
             }),
           ),
         ),
