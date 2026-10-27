@@ -3,6 +3,7 @@
 
 import { memo, useEffect, useState } from "react";
 import {
+  BanIcon,
   CheckIcon,
   ChevronRightIcon,
   CircleDashedIcon,
@@ -229,5 +230,7 @@ function StatusMark({ status, waiting }: { status: ToolStatus; waiting: boolean 
     );
   if (status === "aborted")
     return <XIcon className={cn(className, "text-destructive")} aria-label="Stopped" />;
+  if (status === "declined")
+    return <BanIcon className={cn(className, "text-foreground-subtlest")} aria-label="Not run" />;
   return null;
 }

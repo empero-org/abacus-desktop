@@ -64,6 +64,8 @@ export function toolVerb(name: string, type: ToolItemType, status: ToolStatus): 
       return done;
     case "aborted":
       return `Stopped: ${toDo}`;
+    case "declined":
+      return `Did not ${toDo}`;
   }
 }
 

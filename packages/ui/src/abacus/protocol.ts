@@ -29,7 +29,8 @@ export interface ThreadSummary {
 }
 
 export type ToolItemType = "commandExecution" | "fileChange" | "functionCall";
-export type ToolStatus = "awaitingApproval" | "inProgress" | "completed" | "aborted";
+/** `declined`: the call did not run; the safety review or the person stopped it. */
+export type ToolStatus = "awaitingApproval" | "inProgress" | "completed" | "aborted" | "declined";
 
 export type Item =
   | { id: string; type: "userMessage"; text: string; images?: string[] | null; files?: string[] }
