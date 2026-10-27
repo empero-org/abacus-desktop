@@ -30,7 +30,7 @@ export type { AbacusState, Notice, Phase } from "./state.js";
 
 let noticeCounter = 0;
 // Messages from other sessions held for the person are news, not a problem.
-const INFO_NOTICE = /^(tethered|steering|noted|refine|mode) —|^(A message|\d+ messages) from /;
+const INFO_NOTICE = /^(steering|noted|mode) —|^(A message|\d+ messages) from /;
 let unsubscribe: (() => void) | null = null;
 
 function errorMessage(error: unknown): string {

@@ -109,7 +109,7 @@ export const ROLES: { id: string; label: string; help: string; fallback: string 
   {
     id: "aux",
     label: "Auxiliary model",
-    help: "Background calls: prompt refinement, drift checks, page extraction.",
+    help: "Background calls: reading fetched pages and large outputs.",
     fallback: "the profile's model",
   },
   {
