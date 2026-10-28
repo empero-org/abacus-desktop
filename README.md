@@ -19,7 +19,9 @@ change made in the app is the change the terminal UI would make.
 
 - **Projects and sessions.** Every project you have used abacus in, with its
   sessions, including sessions synced from your other devices with Abacus Sync.
-  Open one to continue it, or start a new thread.
+  The projects worked in last come first, each with its latest sessions in
+  view. Pin a project to keep it at the top of the list, or a session to keep
+  it above everything else. Open one to continue it, or start a new thread.
 - **The conversation.** Streaming answers in markdown with highlighted code,
   math and diagrams; reasoning you can fold away; each tool call as one line
   you can open.

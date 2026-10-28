@@ -1,6 +1,6 @@
-// The sidebar's project tree: each project with its sessions (forks nested
-// under the session they came from, see SessionTree), a menu per project, and
-// the projects that live on other devices.
+// The sidebar's project tree: each project with its latest sessions shown
+// (forks nested under the session they came from, see SessionTree), a menu per
+// project to pin it and more, and the projects that live on other devices.
 
 import { useEffect, useState } from "react";
 import {
@@ -9,6 +9,8 @@ import {
   EllipsisIcon,
   FolderIcon,
   FolderOpenIcon,
+  PinIcon,
+  PinOffIcon,
   SquarePenIcon,
   XIcon,
 } from "lucide-react";
@@ -23,27 +25,34 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { Project } from "../bridge.js";
 import { useAbacus } from "../context.js";
 import { flat, type PlacedSession } from "../groups.js";
+import { changePins, toggleProjectPin } from "../pins.js";
 import { SessionTree } from "./SessionTree.js";
 
-const SESSIONS_SHOWN = 5;
+/** The latest sessions a project shows before "Show more"; a few more for the open one. */
+const LATEST_SHOWN = 3;
+const LATEST_SHOWN_OPEN = 5;
 
 export function ProjectGroup({
   project,
   sessions: placed,
   forceOpen = false,
   showAll = false,
+  pinned = false,
 }: {
   project: Project;
   /** What shows under the project; every session, unnested, when not given. */
   sessions?: PlacedSession[];
   forceOpen?: boolean;
   showAll?: boolean;
+  pinned?: boolean;
 }) {
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const working = useAbacus((state) => Boolean(state.thread?.turnId));
   const newThreadIn = useAbacus((state) => state.newThreadIn);
   const current = project.path === workspace;
-  const [open, setOpen] = useState(current);
+  // Every project shows its latest sessions without being opened; folding
+  // one hides them.
+  const [open, setOpen] = useState(true);
   const [all, setAll] = useState(false);
   const expanded = forceOpen || open;
 
@@ -53,8 +62,11 @@ export function ProjectGroup({
   }, [current]);
 
   const roots = placed ?? flat(project);
-  const sessions = showAll || all ? roots : roots.slice(0, SESSIONS_SHOWN);
+  const shown = current ? LATEST_SHOWN_OPEN : LATEST_SHOWN;
+  const sessions = showAll || all ? roots : roots.slice(0, shown);
   const hidden = roots.length - sessions.length;
+  // An empty project says so only where a session would start: the open one.
+  const empty = sessions.length === 0 && !current;
 
   return (
     <section className="mb-0.5">
@@ -79,6 +91,9 @@ export function ProjectGroup({
             />
           )}
           <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
+          {pinned ? (
+            <PinIcon className="size-3 shrink-0 text-foreground-subtlest" aria-label="Pinned" />
+          ) : null}
         </button>
         <div className="absolute right-1 flex items-center opacity-0 group-hover/project:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
           <Tooltip>
@@ -95,11 +110,11 @@ export function ProjectGroup({
             </TooltipTrigger>
             <TooltipContent side="right">New thread in {project.name}</TooltipContent>
           </Tooltip>
-          <ProjectMenu project={project} />
+          <ProjectMenu project={project} pinned={pinned} />
         </div>
       </div>
 
-      {expanded ? (
+      {expanded && !empty ? (
         <ul className="flex flex-col gap-px pt-0.5 pb-1">
           {sessions.length === 0 ? (
             <li className="py-1 pl-9 text-ui-sm text-foreground-subtlest">
@@ -125,7 +140,7 @@ export function ProjectGroup({
   );
 }
 
-function ProjectMenu({ project }: { project: Project }) {
+function ProjectMenu({ project, pinned }: { project: Project; pinned: boolean }) {
   const forgetWorkspace = useAbacus((state) => state.forgetWorkspace);
   return (
     <DropdownMenu>
@@ -139,6 +154,13 @@ function ProjectMenu({ project }: { project: Project }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start" className="min-w-52">
+        <DropdownMenuItem
+          onSelect={() => changePins((pins) => toggleProjectPin(pins, project.path))}
+          className="gap-2.5"
+        >
+          {pinned ? <PinOffIcon className="size-3.5" /> : <PinIcon className="size-3.5" />}
+          {pinned ? "Unpin" : "Pin to top"}
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => void window.abacus?.newWindow(project.path)}
           className="gap-2.5"

@@ -1,7 +1,8 @@
-// The sidebar: new thread and search on top, then the groups made here, every
-// project with its abacus sessions (synced ones included, forks nested under
-// what they came from), and settings at the bottom. On macOS the top strip
-// leaves room for the traffic lights.
+// The sidebar: new thread and search on top, then the pinned sessions, the
+// groups made here, every project with its abacus sessions (synced ones
+// included, forks nested under what they came from; pinned projects first,
+// then the ones worked in last), and settings at the bottom. On macOS the top
+// strip leaves room for the traffic lights.
 
 import { useEffect, useMemo, useState } from "react";
 import { FolderPlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, XIcon } from "lucide-react";
@@ -9,10 +10,12 @@ import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { Project, ProjectSession } from "../bridge.js";
 import { useAbacus } from "../context.js";
-import { arrange, useGroups } from "../groups.js";
+import { arrange, useGroups, type PlacedSession } from "../groups.js";
+import { orderProjects, usePins } from "../pins.js";
 import { BrandMark } from "./BrandMark.js";
 import { GroupsSection, NewGroupButton } from "./GroupList.js";
 import { OtherDevices, ProjectGroup } from "./ProjectList.js";
+import { SessionTree } from "./SessionTree.js";
 
 /** How often the sidebar asks again which sessions are open or working elsewhere. */
 const LIVE_REFRESH_MS = 30_000;
@@ -20,6 +23,7 @@ const LIVE_REFRESH_MS = 30_000;
 export function Sidebar({ platform }: { platform: string | undefined }) {
   const projects = useSidebarProjects();
   const groups = useGroups();
+  const pins = usePins();
   useLiveRefresh();
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const view = useAbacus((state) => state.view);
@@ -30,16 +34,20 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
 
-  const here = projects.filter((project) => project.exists);
-  const elsewhere = projects.filter((project) => !project.exists);
-  // Sessions on another device cannot be opened here, so they join no group.
-  const arranged = useMemo(
+  const here = useMemo(
     () =>
-      arrange(
+      orderProjects(
         projects.filter((project) => project.exists),
-        groups,
+        pins.projects,
       ),
-    [projects, groups],
+    [projects, pins.projects],
+  );
+  const elsewhere = projects.filter((project) => !project.exists);
+  // Sessions on another device cannot be opened here, so they join no group
+  // and are never pinned.
+  const arranged = useMemo(
+    () => arrange(here, groups, pins.sessions),
+    [here, groups, pins.sessions],
   );
   const matches = useMemo(
     () =>
@@ -115,6 +123,7 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
           )
         ) : (
           <>
+            <PinnedSection entries={arranged.pinned} />
             <GroupsSection entries={arranged.groups} />
             <div className="group/section flex items-center px-2.5 pt-1 pb-1.5">
               <span className="abacus-label flex-1">Projects</span>
@@ -144,6 +153,7 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
                   key={project.path}
                   project={project}
                   sessions={arranged.projects.get(project.path)}
+                  pinned={pins.projects.includes(project.path)}
                 />
               ))
             )}
@@ -161,6 +171,21 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
         />
       </div>
     </aside>
+  );
+}
+
+/** Sessions pinned from any project, above the groups and the projects. */
+function PinnedSection({ entries }: { entries: PlacedSession[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="mb-3">
+      <div className="flex items-center px-2.5 pt-1 pb-1.5">
+        <span className="abacus-label flex-1">Pinned</span>
+      </div>
+      <ul className="flex flex-col gap-px">
+        <SessionTree entries={entries} showProject pinned />
+      </ul>
+    </div>
   );
 }
 

@@ -65,6 +65,16 @@ describe("arrange", () => {
     expect(arrange([site], groups).groups[0]!.sessions).toEqual([]);
   });
 
+  it("shows a pinned session above everything, as pinned, even out of a group", () => {
+    const groups: SessionGroup[] = [{ id: "g", name: "Release", sessions: ["s1", "orphan"] }];
+    const arranged = arrange([api, site], groups, ["s1", "main"]);
+    expect(shape(arranged.pinned)).toBe("s1 main[fork2 fork1[forkOfFork]]");
+    expect(shape(arranged.groups[0]!.sessions)).toBe("orphan");
+    expect(shape(arranged.projects.get("/work/api")!)).toBe("");
+    // Pins of sessions no longer listed are ignored.
+    expect(shape(arrange([site], [], ["gone"]).pinned)).toBe("");
+  });
+
   it("does not lose sessions to a loop in the fork links", () => {
     const loop = project("/work/loop", [
       session("a", "2026-10-27T10:00:00Z", "b"),

@@ -14,6 +14,8 @@ export interface PlacedSession {
 }
 
 export interface Arrangement {
+  /** The pinned sessions, the most recently pinned first, above the groups and projects. */
+  pinned: PlacedSession[];
   /** Every group in the order it was made, with the sessions it shows, newest first. */
   groups: { group: SessionGroup; sessions: PlacedSession[] }[];
   /** By project path: the sessions shown under each project, in the listing's order. */
@@ -21,11 +23,16 @@ export interface Arrangement {
 }
 
 /**
- * Where each session shows. One in a group shows there, not under its project
- * as well. A fork follows the session it came from and nests under it, unless
- * it was put in a group of its own; a fork whose parent is gone stands alone.
+ * Where each session shows. A pinned one shows above everything else, one in a
+ * group shows there, and neither shows under its project as well. A fork
+ * follows the session it came from and nests under it, unless it was pinned or
+ * put in a group of its own; a fork whose parent is gone stands alone.
  */
-export function arrange(projects: Project[], groups: SessionGroup[]): Arrangement {
+export function arrange(
+  projects: Project[],
+  groups: SessionGroup[],
+  pinned: string[] = [],
+): Arrangement {
   const known = new Map<string, { session: ProjectSession; project: Project }>();
   for (const project of projects) {
     for (const session of project.sessions) {
@@ -41,13 +48,16 @@ export function arrange(projects: Project[], groups: SessionGroup[]): Arrangemen
     return parent && parent !== id && known.has(parent) ? parent : null;
   };
 
-  // Where a session shows: its own group, else wherever the session it was
-  // forked from shows, else its project. A loop in the fork links (which only
+  const pins = new Set(pinned);
+
+  // Where a session shows: pinned, else its own group, else wherever the
+  // session it was forked from shows, else its project. A loop in the fork links (which only
   // a hand-edited file could make) ends the walk where it closes.
   const home = (id: string): string => {
     const seen = new Set([id]);
     let current = id;
     for (;;) {
+      if (pins.has(current)) return "pinned";
       const group = groupOf.get(current);
       if (group) return `group:${group}`;
       const parent = parentOf(current);
@@ -83,7 +93,10 @@ export function arrange(projects: Project[], groups: SessionGroup[]): Arrangemen
 
   const newestFirst = (left: PlacedSession, right: PlacedSession) =>
     Date.parse(right.session.updatedAt) - Date.parse(left.session.updatedAt);
+  const pinOrder = (left: PlacedSession, right: PlacedSession) =>
+    pinned.indexOf(left.session.id) - pinned.indexOf(right.session.id);
   return {
+    pinned: [...(roots.get("pinned") ?? [])].sort(pinOrder),
     groups: groups.map((group) => ({
       group,
       sessions: [...(roots.get(`group:${group.id}`) ?? [])].sort(newestFirst),

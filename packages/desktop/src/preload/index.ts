@@ -5,6 +5,7 @@ import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "ele
 import type {
   AbacusBridge,
   BrowserState,
+  Pins,
   ServerMessage,
   SessionGroup,
   TerminalEvent,
@@ -73,6 +74,16 @@ const bridge: AbacusBridge = {
       const handler = (_event: IpcRendererEvent, groups: SessionGroup[]) => listener(groups);
       ipcRenderer.on("groups:changed", handler);
       return () => ipcRenderer.removeListener("groups:changed", handler);
+    },
+  },
+
+  pins: {
+    list: () => ipcRenderer.invoke("pins:list"),
+    save: (pins) => ipcRenderer.invoke("pins:save", pins),
+    onChange: (listener) => {
+      const handler = (_event: IpcRendererEvent, pins: Pins) => listener(pins);
+      ipcRenderer.on("pins:changed", handler);
+      return () => ipcRenderer.removeListener("pins:changed", handler);
     },
   },
 

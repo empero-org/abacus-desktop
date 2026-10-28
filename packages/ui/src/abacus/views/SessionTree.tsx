@@ -1,9 +1,17 @@
 // The sidebar's session rows: each session with, under it, the forks made
 // from it. A row opens its session, drags onto a group, shows whether the
-// session is open or working elsewhere, and has a menu to fork it or move it
-// between groups.
+// session is open or working elsewhere, and has a menu to fork it, pin it, or
+// move it between groups.
 
-import { EllipsisIcon, GitBranchIcon, LayersIcon, PlusIcon, XIcon } from "lucide-react";
+import {
+  EllipsisIcon,
+  GitBranchIcon,
+  LayersIcon,
+  PinIcon,
+  PinOffIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import {
   DropdownMenu,
@@ -30,20 +38,30 @@ import {
   useGroups,
   type PlacedSession,
 } from "../groups.js";
+import { changePins, toggleSessionPin, usePins } from "../pins.js";
 
 /** Sessions and, under each, the forks made from it. */
 export function SessionTree({
   entries,
   depth = 0,
   showProject = false,
+  pinned = false,
 }: {
   entries: PlacedSession[];
   depth?: number;
   /** Name each session's project, where sessions from several share a list. */
   showProject?: boolean;
+  /** The pinned sessions, which show a pin where a project shows its folder. */
+  pinned?: boolean;
 }) {
   return entries.map((entry) => (
-    <SessionBranch key={entry.session.id} entry={entry} depth={depth} showProject={showProject} />
+    <SessionBranch
+      key={entry.session.id}
+      entry={entry}
+      depth={depth}
+      showProject={showProject}
+      pinned={pinned}
+    />
   ));
 }
 
@@ -51,33 +69,46 @@ function SessionBranch({
   entry,
   depth,
   showProject,
+  pinned,
 }: {
   entry: PlacedSession;
   depth: number;
   showProject: boolean;
+  pinned: boolean;
 }) {
   return (
     <>
-      <SessionRow entry={entry} depth={depth} showProject={showProject} />
+      <SessionRow entry={entry} depth={depth} showProject={showProject} pinned={pinned} />
       {entry.forks.length > 0 ? (
-        <SessionTree entries={entry.forks} depth={depth + 1} showProject={showProject} />
+        <SessionTree
+          entries={entry.forks}
+          depth={depth + 1}
+          showProject={showProject}
+          pinned={pinned}
+        />
       ) : null}
     </>
   );
 }
 
-/** Rows start under the project's name; each level of forking steps in once more. */
+/**
+ * Rows start under the project's name; each level of forking steps in once
+ * more. A pinned row starts where a project does, its pin in the folder's place.
+ */
 const ROW_INDENT_PX = 36;
+const PINNED_INDENT_PX = 10;
 const FORK_INDENT_PX = 14;
 
 function SessionRow({
   entry: { session, project },
   depth,
   showProject,
+  pinned,
 }: {
   entry: PlacedSession;
   depth: number;
   showProject: boolean;
+  pinned: boolean;
 }) {
   const activeId = useAbacus((state) => state.thread?.threadId);
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
@@ -100,7 +131,7 @@ function SessionRow({
       disabled={disabled}
       aria-current={active ? "page" : undefined}
       title={showProject ? `${project.name} · ${title}` : undefined}
-      style={{ paddingLeft: ROW_INDENT_PX + depth * FORK_INDENT_PX }}
+      style={{ paddingLeft: (pinned ? PINNED_INDENT_PX : ROW_INDENT_PX) + depth * FORK_INDENT_PX }}
       className={cn(
         "flex w-full min-w-0 items-center gap-2 rounded-lg py-1.5 pr-2.5 text-left text-ui-base text-foreground-subtle hover:bg-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
         active && "bg-selected text-foreground hover:bg-selected",
@@ -108,6 +139,8 @@ function SessionRow({
     >
       {depth > 0 ? (
         <GitBranchIcon className="size-3 shrink-0 text-foreground-subtlest" aria-label="Fork" />
+      ) : pinned ? (
+        <PinIcon className="size-4 shrink-0 text-foreground-subtlest" aria-label="Pinned" />
       ) : null}
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {showProject ? (
@@ -185,6 +218,7 @@ function SessionMenu({
   forkable: boolean;
 }) {
   const groups = useGroups();
+  const pinned = usePins().sessions.includes(sessionId);
   const canFork = useAbacus((state) => Boolean(state.capabilities.fork));
   const forkThread = useAbacus((state) => state.forkThread);
   const current = groupOf(groups, sessionId);
@@ -206,6 +240,13 @@ function SessionMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start" className="min-w-52">
+        <DropdownMenuItem
+          onSelect={() => changePins((pins) => toggleSessionPin(pins, sessionId))}
+          className="gap-2.5"
+        >
+          {pinned ? <PinOffIcon className="size-3.5" /> : <PinIcon className="size-3.5" />}
+          {pinned ? "Unpin" : "Pin to top"}
+        </DropdownMenuItem>
         {canFork ? (
           <DropdownMenuItem
             disabled={!forkable}

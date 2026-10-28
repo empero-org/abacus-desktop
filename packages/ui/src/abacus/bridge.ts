@@ -70,6 +70,21 @@ export interface GroupsBridge {
   onChange(listener: (groups: SessionGroup[]) => void): () => void;
 }
 
+/** What the sidebar keeps at the top, the most recently pinned first. */
+export interface Pins {
+  /** Session ids, shown above the groups and the projects. */
+  sessions: string[];
+  /** Project paths, listed before the other projects. */
+  projects: string[];
+}
+
+/** The sidebar's pins, kept and shared like the groups. */
+export interface PinsBridge {
+  list(): Promise<Pins>;
+  save(pins: Pins): Promise<Pins>;
+  onChange(listener: (pins: Pins) => void): () => void;
+}
+
 /**
  * A project in the sidebar: a folder with abacus sessions on this machine
  * (synced from another device included), or one opened here that has none yet.
@@ -169,6 +184,7 @@ export interface AbacusBridge {
 
   browser: BrowserBridge;
   groups: GroupsBridge;
+  pins: PinsBridge;
 
   /** Where a dropped or picked file lives on disk; null for one with no path (pasted from a browser). */
   pathForFile(file: File): string | null;
