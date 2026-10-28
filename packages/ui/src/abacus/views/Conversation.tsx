@@ -1,28 +1,49 @@
 // The transcript of the open thread. It sticks to the bottom while the agent
-// streams, unless the person scrolled up to read.
+// streams, unless the person scrolled up to read. What the agent did between
+// two messages folds into one group; the goal and plan bars show their own
+// bookkeeping calls, so those stay out of it.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRightIcon } from "lucide-react";
 import {
   Conversation as StickyConversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation.js";
 import { Shimmer } from "@/components/ai-elements/shimmer.js";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible.js";
 import { useAbacus } from "../context.js";
+import type { Item } from "../protocol.js";
+import { groupSteps, stepSummary } from "../steps.js";
 import { isWorking } from "../thread.js";
+import { shownInBar } from "../tools.js";
 import { BrandMark } from "./BrandMark.js";
 import { ItemView } from "./Items.js";
 
+const NONE: Item[] = [];
+
 export function Conversation() {
-  const items = useAbacus((state) => state.thread?.items ?? []);
+  const items = useAbacus((state) => state.thread?.items ?? NONE);
   const threadId = useAbacus((state) => state.thread?.threadId);
   const working = useAbacus((state) => isWorking(state.thread));
   const turnId = useAbacus((state) => state.thread?.turnId ?? null);
   const lastTurnStatus = useAbacus((state) => state.thread?.lastTurnStatus ?? null);
+  const capabilities = useAbacus((state) => state.capabilities);
+  const shown = useMemo(
+    () => items.filter((item) => !("status" in item && shownInBar(item.name, capabilities))),
+    [items, capabilities],
+  );
+  const entries = useMemo(() => groupSteps(shown), [shown]);
 
-  if (items.length === 0 && !turnId) return <EmptyThread />;
+  if (shown.length === 0 && !turnId) return <EmptyThread />;
 
-  const last = items[items.length - 1];
+  const last = shown[shown.length - 1];
+  // The item the running turn is writing.
+  const liveId = turnId ? items[items.length - 1]?.id : undefined;
   // The streaming item shows its own progress; the shimmer covers the gaps
   // between items (waiting on the model, a tool about to start).
   const streamingText =
@@ -32,13 +53,18 @@ export function Conversation() {
   return (
     <StickyConversation key={threadId} className="min-h-0 flex-1">
       <ConversationContent className="mx-auto w-full max-w-(--content-width) gap-5 px-6 pt-6 pb-10">
-        {items.map((item, index) => (
-          <ItemView
-            key={item.id}
-            item={item}
-            live={Boolean(turnId) && index === items.length - 1}
-          />
-        ))}
+        {entries.map((entry, index) =>
+          entry.kind === "item" ? (
+            <ItemView key={entry.item.id} item={entry.item} live={entry.item.id === liveId} />
+          ) : (
+            <StepGroup
+              key={entry.id}
+              items={entry.items}
+              liveId={liveId}
+              live={Boolean(turnId) && index === entries.length - 1}
+            />
+          ),
+        )}
         {working && !streamingText && !runningTool ? (
           <WorkingLine key={turnId} turnId={turnId} />
         ) : null}
@@ -71,6 +97,44 @@ function EmptyThread() {
         this project is reviewed before it runs.
       </p>
     </div>
+  );
+}
+
+/**
+ * The steps the agent took between two messages, under one line. Open while
+ * the agent is still in them or one waits on the person, folded once it has
+ * spoken; once the person opens or closes it, it stays as they left it.
+ */
+function StepGroup({
+  items,
+  live,
+  liveId,
+}: {
+  items: Item[];
+  live: boolean;
+  liveId: string | undefined;
+}) {
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const waiting = items.some((item) => "status" in item && item.status === "awaitingApproval");
+  const { label, detail } = stepSummary(items);
+
+  return (
+    <Collapsible open={chosen ?? (live || waiting)} onOpenChange={setChosen}>
+      <CollapsibleTrigger className="group/steps flex max-w-full min-w-0 items-center gap-2 text-left text-ui-base text-foreground-subtle hover:text-foreground">
+        <span className="shrink-0">{label}</span>
+        {detail ? (
+          <span className="min-w-0 truncate text-ui-sm text-foreground-subtlest">{detail}</span>
+        ) : null}
+        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/steps:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-4 flex flex-col gap-5 border-l-2 border-border pl-4">
+          {items.map((item) => (
+            <ItemView key={item.id} item={item} live={item.id === liveId} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

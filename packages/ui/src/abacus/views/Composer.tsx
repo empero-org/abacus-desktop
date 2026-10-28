@@ -1,6 +1,7 @@
-// Where the person writes. Enter sends; while a turn runs, a message waits in a
-// queue at the top of the box (QueueBar) and the send button turns into Stop
-// when there is nothing to queue. `/` completes commands and `@` files;
+// Where the person writes. Enter sends; the goal and the agent's plan are
+// pinned at the top of the box (GoalBar, PlanBar); while a turn runs, a
+// message waits in a queue below them (QueueBar) and the send button turns
+// into Stop when there is nothing to queue. `/` completes commands and `@` files;
 // images and text files come in by paste, drop or the attach button. Anything
 // the agent is blocked on (an approval, a question) sits above the box, where
 // the eye already is.
@@ -39,6 +40,8 @@ import type { Attachment } from "../attachments.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { AttachButton, AttachmentStrip } from "./Attachments.js";
 import { CompletionList, useCompletion } from "./Completion.js";
+import { GoalBar } from "./GoalBar.js";
+import { PlanBar } from "./PlanBar.js";
 import { QueueBar } from "./QueueBar.js";
 import { Requests } from "./Requests.js";
 
@@ -137,6 +140,8 @@ export function Composer() {
             dragging && "border-brand/60 bg-selected",
           )}
         >
+          <GoalBar key={thread.threadId} />
+          <PlanBar key={`plan-${thread.threadId}`} />
           <QueueBar />
           <CompletionList completion={completion} />
           {attachments.length > 0 ? <AttachmentStrip attachments={attachments} /> : null}

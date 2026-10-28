@@ -39,6 +39,34 @@ function run(...frames: [string, unknown][]) {
 }
 
 describe("applyNotification", () => {
+  it("follows the goal, and has none when the CLI does not say", () => {
+    expect(threadFromSnapshot(snapshot).goal).toBeNull();
+    const goal = { objective: "Ship it", status: "active", iterations: 0, note: null };
+    const set = run(["thread/goal/updated", { threadId: "t1", goal }]);
+    expect(set.goal).toEqual(goal);
+    const paused = applyNotification(set, "thread/goal/updated", {
+      threadId: "t1",
+      goal: { ...goal, status: "paused", iterations: 2 },
+    });
+    expect(paused.goal?.status).toBe("paused");
+    // Another thread's goal is not this one's.
+    expect(
+      applyNotification(paused, "thread/goal/updated", { threadId: "t2", goal: null }).goal,
+    ).toEqual(paused.goal);
+    expect(
+      applyNotification(paused, "thread/goal/updated", { threadId: "t1", goal: null }).goal,
+    ).toBeNull();
+  });
+
+  it("follows the task list", () => {
+    expect(threadFromSnapshot(snapshot).taskList).toEqual([]);
+    const tasks = [
+      { text: "write tests", done: true },
+      { text: "run lint", done: false },
+    ];
+    expect(run(["thread/taskList/updated", { threadId: "t1", tasks }]).taskList).toEqual(tasks);
+  });
+
   it("streams an agent message and lets item/completed have the last word", () => {
     const thread = run(
       ["turn/started", { threadId: "t1", turnId: "turn_1" }],

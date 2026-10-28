@@ -40,7 +40,7 @@ export function agentActions(
     setIdleCompaction: (enabled) => write("idle_compaction", enabled),
     setAgentLimit: (key, value) => write(key, value),
 
-    runCommand: (name, argument) =>
+    runCommand: (name, argument, quiet = false) =>
       guard(async () => {
         if (!get().capabilities.commandRun) {
           get().notify(
@@ -51,6 +51,7 @@ export function agentActions(
         }
         const threadId = get().thread?.threadId;
         const { text } = await bridge.request<CommandResult>("command/run", { name, argument });
+        if (quiet) return;
         // Shown in the thread it was asked in, if that is still the one open.
         const thread = get().thread;
         if (thread && thread.threadId === threadId)

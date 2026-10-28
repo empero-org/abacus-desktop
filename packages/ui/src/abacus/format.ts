@@ -74,3 +74,16 @@ export function tokenCount(value: number): string {
   if (value < 1_000_000) return `${(value / 1000).toFixed(1)}k`;
   return `${(value / 1_000_000).toFixed(1)}M`;
 }
+
+/**
+ * What a thought was about, in a line: the heading many models open their
+ * reasoning with (`**Checking the queue**`), or else its first sentence.
+ * Empty when it says nothing yet.
+ */
+export function thoughtTitle(text: string): string {
+  const heading = /^\s*(?:#+\s*)?\*\*(.+?)\*\*/.exec(text);
+  if (heading) return heading[1]!.trim();
+  const line = text.trim().split("\n")[0] ?? "";
+  const plain = line.replace(/^#+\s*|[*_`>]/g, "").trim();
+  return /^(.+?[.!?])(?:\s|$)/.exec(plain)?.[1] ?? plain;
+}

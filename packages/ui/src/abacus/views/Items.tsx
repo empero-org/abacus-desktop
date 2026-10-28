@@ -6,6 +6,7 @@ import { memo, useEffect, useState } from "react";
 import {
   BanIcon,
   BotIcon,
+  BrainIcon,
   CheckIcon,
   ChevronRightIcon,
   CircleDashedIcon,
@@ -28,7 +29,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
 import type { Item, MessageSender, ToolItemType, ToolStatus } from "../protocol.js";
-import { compactionLabel } from "../format.js";
+import { compactionLabel, thoughtTitle } from "../format.js";
 import { standsAlone, toolSubject, toolVerb } from "../tools.js";
 import { Markdown } from "./Markdown.js";
 
@@ -224,21 +225,29 @@ function Reasoning({ text, streaming }: { text: string; streaming: boolean }) {
   // Open while it streams, fold away once the agent moves on.
   useEffect(() => setOpen(streaming), [streaming]);
   if (!text.trim() && !streaming) return null;
+  // What it was about reads in place of "Thought", as a tool call's purpose does.
+  const title = thoughtTitle(text);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="group/reasoning flex items-center gap-1.5 text-ui-base text-foreground-subtle hover:text-foreground">
+    <Collapsible open={open} onOpenChange={setOpen} className="-my-2">
+      <CollapsibleTrigger className="group/reasoning flex w-full min-w-0 items-center gap-2 rounded-md py-1 text-left text-ui-base text-foreground-subtle hover:text-foreground">
+        <BrainIcon className="size-4 shrink-0 text-foreground-subtlest" />
         {streaming ? (
-          <Shimmer as="span" duration={1.6}>
-            Thinking
-          </Shimmer>
+          <>
+            <Shimmer as="span" duration={1.6}>
+              Thinking
+            </Shimmer>
+            {title ? (
+              <span className="min-w-0 truncate text-foreground-subtlest">{title}</span>
+            ) : null}
+          </>
         ) : (
-          <span>Thought</span>
+          <span className="min-w-0 truncate">{title || "Thought"}</span>
         )}
-        <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]/reasoning:rotate-90" />
+        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[state=open]/reasoning:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="mt-2 border-l-2 border-brand/30 pl-3 text-foreground-subtle">
+        <div className="mt-2 mb-2 border-l-2 border-brand/30 pl-3 text-foreground-subtle">
           <Markdown streaming={streaming} className="text-ui-sm leading-relaxed">
             {text}
           </Markdown>

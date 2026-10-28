@@ -76,6 +76,21 @@ export function standsAlone(name: string): boolean {
   return STANDS_ALONE.has(name);
 }
 
+/** Bookkeeping calls a pinned bar shows instead, by the capability that reports what they change. */
+const IN_A_BAR: Record<string, string> = {
+  goal_status: "goal",
+  goal_update: "goal",
+  task_list: "taskList",
+  task_create: "taskList",
+  task_update: "taskList",
+};
+
+/** Whether the goal or plan bar shows what this call did, so the transcript need not. */
+export function shownInBar(name: string, capabilities: Record<string, boolean>): boolean {
+  const capability = IN_A_BAR[name];
+  return capability !== undefined && Boolean(capabilities[capability]);
+}
+
 /** What the call was about: its summary, or the tool's name for an unknown tool without one. */
 export function toolSubject(name: string, command: string | undefined): string {
   const summary = command?.trim();

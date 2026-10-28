@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactNumber, compactionLabel, elapsed, tokenCount } from "./format.js";
+import { compactNumber, compactionLabel, elapsed, thoughtTitle, tokenCount } from "./format.js";
 import { toolActivity } from "./tools.js";
 
 describe("task figures", () => {
@@ -40,5 +40,25 @@ describe("compaction dividers", () => {
     expect(
       compactionLabel({ id: "compaction_3", type: "contextCompaction", savedTokens: 398_900 }),
     ).toBe(`Compacted while you were away · saved ${compactNumber(398_900)} tokens`);
+  });
+});
+
+describe("thoughtTitle", () => {
+  it("takes the heading a model opens its reasoning with", () => {
+    expect(thoughtTitle("**Checking the queue**\n\nThe bar sits above the composer.")).toBe(
+      "Checking the queue",
+    );
+    expect(thoughtTitle("## **Planning**\nfirst")).toBe("Planning");
+  });
+
+  it("else takes the first sentence, without markdown", () => {
+    expect(thoughtTitle("The user wants a bar. It goes above the queue.")).toBe(
+      "The user wants a bar.",
+    );
+    expect(thoughtTitle("Look at `QueueBar.tsx` first\nthen the store")).toBe(
+      "Look at QueueBar.tsx first",
+    );
+    expect(thoughtTitle("Version 0.7.5 ships it")).toBe("Version 0.7.5 ships it");
+    expect(thoughtTitle("   ")).toBe("");
   });
 });

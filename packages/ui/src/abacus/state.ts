@@ -123,8 +123,11 @@ export interface AbacusState {
   setIdleCompaction(enabled: boolean): Promise<void>;
   /** Change one of the agent's limits, for every session from the next turn on. */
   setAgentLimit(key: "max_steps" | "tool_output_limit", value: number): Promise<void>;
-  /** Run one of the terminal's commands (`/memory`, `/goal`, `/usage`, …) and show what it says. */
-  runCommand(name: string, argument: string): Promise<void>;
+  /**
+   * Run one of the terminal's commands (`/memory`, `/goal`, `/usage`, …) and
+   * show what it says; `quiet` when the window shows the outcome itself.
+   */
+  runCommand(name: string, argument: string, quiet?: boolean): Promise<void>;
   /** Keep the composer's draft; while it changes, the app server holds idle compaction off. */
   setDraft(threadId: string, text: string): void;
   attach(files: File[]): Promise<void>;

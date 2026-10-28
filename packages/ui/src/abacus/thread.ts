@@ -8,10 +8,12 @@
 import type {
   AgentMode,
   ChangedFile,
+  Goal,
   Item,
   Notifications,
   ReasoningEffort,
   ServerRequest,
+  TaskEntry,
   ThreadSnapshot,
   TokenUsage,
 } from "./protocol.js";
@@ -31,6 +33,10 @@ export interface ThreadView {
   /** Every token the session has spent, which is not the context. */
   tokensUsed: number;
   usage: TokenUsage | null;
+  /** The persistent goal; null when none is set or the CLI does not say. */
+  goal: Goal | null;
+  /** The agent's task list, in order; empty when it keeps none. */
+  taskList: TaskEntry[];
   items: Item[];
   /** The running turn, or null when the agent is idle. */
   turnId: string | null;
@@ -52,6 +58,8 @@ export function threadFromSnapshot(snapshot: ThreadSnapshot): ThreadView {
     contextTokens: snapshot.contextTokens ?? null,
     tokensUsed: snapshot.tokensUsed,
     usage: snapshot.usage ?? null,
+    goal: snapshot.goal ?? null,
+    taskList: snapshot.taskList ?? [],
     items: snapshot.items ?? [],
     turnId: null,
     lastTurnStatus: null,
@@ -125,6 +133,10 @@ export function applyNotification(thread: ThreadView, method: string, params: un
       return { ...thread, name: (params as Notifications["thread/name/updated"]).name };
     case "thread/mode/updated":
       return { ...thread, mode: (params as Notifications["thread/mode/updated"]).mode };
+    case "thread/goal/updated":
+      return { ...thread, goal: (params as Notifications["thread/goal/updated"]).goal };
+    case "thread/taskList/updated":
+      return { ...thread, taskList: (params as Notifications["thread/taskList/updated"]).tasks };
     case "thread/profile/updated": {
       // Another profile, or the same one changed: the session runs what it says now.
       const update = params as Notifications["thread/profile/updated"];

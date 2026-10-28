@@ -96,7 +96,29 @@ export interface ThreadSnapshot {
   contextTokens?: number;
   tokensUsed: number;
   usage: TokenUsage;
+  /** The persistent goal `/goal` set, or null (CLI 0.7.5 and later). */
+  goal?: Goal | null;
+  /** The agent's own task list for the work at hand (CLI 0.7.5 and later). */
+  taskList?: TaskEntry[];
   items: Item[];
+}
+
+/** One step of the agent's task list. */
+export interface TaskEntry {
+  text: string;
+  done: boolean;
+}
+
+export type GoalStatus = "active" | "paused" | "complete" | "cancelled";
+
+/** What the thread works toward across turns, until the model or the person says it is done. */
+export interface Goal {
+  objective: string;
+  status: GoalStatus;
+  /** Turns run toward it. */
+  iterations: number;
+  /** The model's latest word on it. */
+  note: string | null;
 }
 
 export interface InitializeResult {
@@ -281,6 +303,10 @@ export interface Notifications {
   "thread/started": { threadId: string };
   "thread/name/updated": { threadId: string; name: string };
   "thread/mode/updated": { threadId: string; mode: AgentMode; reason?: string };
+  /** The goal was set, changed, worked on or cleared (capability `goal`). */
+  "thread/goal/updated": { threadId: string; goal: Goal | null };
+  /** The agent added to its task list or checked a step off (capability `taskList`). */
+  "thread/taskList/updated": { threadId: string; tasks: TaskEntry[] };
   "thread/profile/updated": ConfigValueResult;
   "thread/tokenUsage/updated": {
     threadId: string;

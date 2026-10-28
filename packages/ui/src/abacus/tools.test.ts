@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { standsAlone, toolSubject, toolVerb } from "./tools.js";
+import { shownInBar, standsAlone, toolSubject, toolVerb } from "./tools.js";
 
 describe("toolVerb", () => {
   it("speaks a built-in tool's own verb at each status", () => {
@@ -30,5 +30,15 @@ describe("toolSubject", () => {
   it("leaves the name off a tool whose verb says it all", () => {
     expect(standsAlone("browser_screenshot")).toBe(true);
     expect(standsAlone("git_status")).toBe(false);
+  });
+});
+
+describe("shownInBar", () => {
+  it("leaves goal and task-list calls to their bars once the CLI reports them", () => {
+    expect(shownInBar("task_create", { taskList: true })).toBe(true);
+    expect(shownInBar("goal_update", { goal: true })).toBe(true);
+    // An abacus that does not report them has no bar to show them in.
+    expect(shownInBar("task_update", { goal: true })).toBe(false);
+    expect(shownInBar("run_command", { goal: true, taskList: true })).toBe(false);
   });
 });

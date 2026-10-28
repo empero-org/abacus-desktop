@@ -126,7 +126,8 @@ function QueuedRow({
   );
 }
 
-function Action({
+/** A small text button with a hint, as the composer's pinned bars use. */
+export function Action({
   hint,
   onClick,
   children,
