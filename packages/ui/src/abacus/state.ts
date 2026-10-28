@@ -4,6 +4,7 @@ import type { Attachment } from "./attachments.js";
 import type { AppInfo, CliStatus, Project, RecentWorkspace, WorkspaceSession } from "./bridge.js";
 import type { CommandEntry } from "./completion.js";
 import type {
+  AgentLimits,
   AgentMode,
   ApprovalDecision,
   BackgroundTask,
@@ -47,6 +48,8 @@ export interface AbacusState {
   needsSetup: boolean;
   /** Whether a long thread left idle is compacted; an abacus setting, not the thread's. */
   idleCompaction: boolean;
+  /** How far one turn may go; null when the app server cannot change it. */
+  agentLimits: AgentLimits | null;
   profiles: ProfileEntry[];
   providers: ProviderEntry[];
   /** The ready-made providers to start from. */
@@ -118,6 +121,10 @@ export interface AbacusState {
   setMode(mode: AgentMode): Promise<void>;
   setReasoningEffort(effort: ReasoningEffort | null): Promise<void>;
   setIdleCompaction(enabled: boolean): Promise<void>;
+  /** Change one of the agent's limits, for every session from the next turn on. */
+  setAgentLimit(key: "max_steps" | "tool_output_limit", value: number): Promise<void>;
+  /** Run one of the terminal's commands (`/memory`, `/goal`, `/usage`, …) and show what it says. */
+  runCommand(name: string, argument: string): Promise<void>;
   /** Keep the composer's draft; while it changes, the app server holds idle compaction off. */
   setDraft(threadId: string, text: string): void;
   attach(files: File[]): Promise<void>;

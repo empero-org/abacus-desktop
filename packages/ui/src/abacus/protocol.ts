@@ -67,6 +67,8 @@ export type Item =
    * much was folded away there, and whether the summary stands in for it.
    */
   | { id: string; type: "contextCompaction"; messages: number; tokens: number; summarised: boolean }
+  /** Not from the server's items: what one of the terminal's commands (`/memory`, `/usage`, …) said. */
+  | { id: string; type: "commandOutput"; command: string; text: string }
   | {
       id: string;
       type: ToolItemType;
@@ -106,6 +108,10 @@ export interface InitializeResult {
   capabilities: Record<string, boolean>;
   /** Whether a long thread left idle is compacted (capability `idleCompaction`). */
   idleCompaction?: boolean;
+  /** Model round trips one turn may take (capability `agentLimits`). */
+  maxSteps?: number;
+  /** Characters of tool output kept before truncation (capability `agentLimits`). */
+  toolOutputLimit?: number;
   thread: ThreadSnapshot;
 }
 
@@ -125,9 +131,29 @@ export interface ConfigValueResult {
   contextWindow?: number | null;
   needsSetup?: boolean;
   idleCompaction?: boolean;
+  maxSteps?: number;
+  toolOutputLimit?: number;
 }
 
-export type WritableConfigKey = "profile" | "reasoning_effort" | "mode" | "idle_compaction";
+export type WritableConfigKey =
+  | "profile"
+  | "reasoning_effort"
+  | "mode"
+  | "idle_compaction"
+  | "max_steps"
+  | "tool_output_limit";
+
+/** The agent's limits, as `max_steps` and `tool_output_limit` set them. */
+export interface AgentLimits {
+  maxSteps: number;
+  toolOutputLimit: number;
+}
+
+/** What `command/run` answers: what to show, and the turn `/goal` started. */
+export interface CommandResult {
+  text: string;
+  turnId?: string | null;
+}
 
 export type Protocol = "chat-completions" | "responses" | "anthropic";
 

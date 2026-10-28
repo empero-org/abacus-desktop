@@ -167,9 +167,20 @@ function PaneButton({
 
 /**
  * One shell. Its xterm lives as long as the tab; when the shell exits, any key
- * starts a new one in the same tab.
+ * starts a new one in the same tab. With `run`, it runs that command once
+ * instead (`abacus update`), and tells `onExit` how it ended.
  */
-function TerminalView({ visible }: { visible: boolean }) {
+export function TerminalView({
+  visible,
+  run,
+  onExit,
+}: {
+  visible: boolean;
+  run?: "update";
+  onExit?: (code: number | null) => void;
+}) {
+  const exitRef = useRef(onExit);
+  exitRef.current = onExit;
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<{ term: Terminal; fit: FitAddon } | null>(null);
   const scheme = useColorSchemeChoice();
@@ -208,9 +219,13 @@ function TerminalView({ visible }: { visible: boolean }) {
       } else {
         exited = true;
         id = null;
+        const code = event.code ? ` with code ${event.code}` : "";
         term.write(
-          `\r\n\x1b[2m[process exited${event.code ? ` with code ${event.code}` : ""} — press any key for a new shell]\x1b[0m\r\n`,
+          run
+            ? `\r\n\x1b[2m[finished${code}]\x1b[0m\r\n`
+            : `\r\n\x1b[2m[process exited${code} — press any key for a new shell]\x1b[0m\r\n`,
         );
+        exitRef.current?.(event.code);
       }
     };
     const unsubscribe = bridge.onTerminal((event) => {
@@ -225,7 +240,7 @@ function TerminalView({ visible }: { visible: boolean }) {
       exited = false;
       early.length = 0;
       bridge
-        .openTerminal(term.cols, term.rows)
+        .openTerminal(term.cols, term.rows, run)
         .then((opened) => {
           if (disposed) return bridge.closeTerminal(opened);
           id = opened;
@@ -233,6 +248,7 @@ function TerminalView({ visible }: { visible: boolean }) {
         })
         .catch((error: unknown) => {
           exited = true;
+          if (run) exitRef.current?.(null);
           term.write(
             `\x1b[31m${error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, "") : String(error)}\x1b[0m\r\n`,
           );
@@ -240,6 +256,7 @@ function TerminalView({ visible }: { visible: boolean }) {
     };
 
     const input = term.onData((data) => {
+      if (exited && run) return;
       if (exited) {
         term.clear();
         start();
@@ -257,20 +274,26 @@ function TerminalView({ visible }: { visible: boolean }) {
       frame = requestAnimationFrame(() => safeFit(fit));
     });
     observer.observe(element);
-    start();
+    // A tick later: React's development mode mounts every effect twice, and
+    // the first mount's start is cancelled rather than run and closed. For
+    // `abacus update` that is the difference between one installer and two.
+    const starting = setTimeout(start);
 
     return () => {
       disposed = true;
+      clearTimeout(starting);
       observer.disconnect();
       cancelAnimationFrame(frame);
       input.dispose();
       resize.dispose();
       unsubscribe();
-      if (id !== null) bridge.closeTerminal(id);
+      // An update goes on to the end when its view closes: an installer
+      // stopped halfway is worse than one nobody watches.
+      if (id !== null && !run) bridge.closeTerminal(id);
       term.dispose();
       terminal.current = null;
     };
-  }, []);
+  }, [run]);
 
   // A tab coming into view fits its space and takes the keyboard.
   useEffect(() => {

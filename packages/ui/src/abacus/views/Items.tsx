@@ -49,6 +49,8 @@ export const ItemView = memo(function ItemView({ item, live }: { item: Item; liv
       return <Reasoning text={item.text} streaming={live} />;
     case "contextCompaction":
       return <Compacted label={compactionLabel(item)} />;
+    case "commandOutput":
+      return <CommandOutput command={item.command} text={item.text} />;
     default:
       return <ToolCall item={item} />;
   }
@@ -61,6 +63,21 @@ function Compacted({ label }: { label: string }) {
       <span className="h-px flex-1 bg-border" />
       <span>{label}</span>
       <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/** What a command such as `/memory` or `/usage` said: the window's, not the model's. */
+function CommandOutput({ command, text }: { command: string; text: string }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border bg-card px-4 py-3">
+      <span className="flex items-center gap-1.5 text-ui-sm text-foreground-subtle">
+        <SquareTerminalIcon className="size-3.5 shrink-0" />
+        <span className="font-mono">/{command}</span>
+      </span>
+      <pre className="overflow-x-auto font-mono text-ui-sm leading-relaxed whitespace-pre-wrap text-foreground">
+        {text}
+      </pre>
     </div>
   );
 }

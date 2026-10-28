@@ -14,6 +14,7 @@ import type {
 const bridge: AbacusBridge = {
   appInfo: () => ipcRenderer.invoke("app:info"),
   detectCli: () => ipcRenderer.invoke("cli:detect"),
+  checkForUpdate: () => ipcRenderer.invoke("cli:checkUpdate"),
 
   recentWorkspaces: () => ipcRenderer.invoke("workspace:recent"),
   listProjects: () => ipcRenderer.invoke("projects:list"),
@@ -33,7 +34,7 @@ const bridge: AbacusBridge = {
     return () => ipcRenderer.removeListener("abacus:message", handler);
   },
 
-  openTerminal: (cols, rows) => ipcRenderer.invoke("terminal:open", cols, rows),
+  openTerminal: (cols, rows, run) => ipcRenderer.invoke("terminal:open", cols, rows, run),
   writeTerminal: (id, data) => ipcRenderer.send("terminal:write", id, data),
   resizeTerminal: (id, cols, rows) => ipcRenderer.send("terminal:resize", id, cols, rows),
   closeTerminal: (id) => ipcRenderer.send("terminal:close", id),

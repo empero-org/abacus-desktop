@@ -17,6 +17,8 @@ import { useAbacus } from "../context.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { ProfileList } from "./Profiles.js";
 import { ProviderList } from "./Providers.js";
+import { LimitInput } from "./Form.js";
+import { Updates } from "./Updates.js";
 import { chooseColorScheme, useColorSchemeChoice, type ColorScheme } from "../useColorScheme.js";
 import {
   chooseContentWidth,
@@ -187,6 +189,8 @@ function Agent() {
   const idleCompaction = useAbacus((state) => state.idleCompaction);
   const setIdleCompaction = useAbacus((state) => state.setIdleCompaction);
   const canIdleCompact = useAbacus((state) => Boolean(state.capabilities.idleCompaction));
+  const limits = useAbacus((state) => state.agentLimits);
+  const setAgentLimit = useAbacus((state) => state.setAgentLimit);
   const running = Boolean(thread?.turnId);
 
   if (!thread || !ready) {
@@ -264,10 +268,38 @@ function Agent() {
             />
           </Row>
         ) : null}
+        {limits ? (
+          <>
+            <Row
+              label="Steps per turn"
+              hint="Model round trips (each with its tool calls) one turn may take before it stops; another message carries on. 1 to 1024."
+            >
+              <LimitInput
+                value={limits.maxSteps}
+                min={1}
+                max={1024}
+                label="Steps per turn"
+                onChange={(value) => void setAgentLimit("max_steps", value)}
+              />
+            </Row>
+            <Row
+              label="Tool output kept"
+              hint="Characters of each tool result the model sees; the rest is cut. 2,000 to 200,000."
+            >
+              <LimitInput
+                value={limits.toolOutputLimit}
+                min={2_000}
+                max={200_000}
+                label="Tool output kept"
+                onChange={(value) => void setAgentLimit("tool_output_limit", value)}
+              />
+            </Row>
+          </>
+        ) : null}
       </Section>
       <Section
         title="Profiles"
-        hint="A model and the settings it runs with. The composer switches between them."
+        hint="A model and the settings it runs with, its output token limit among them. The composer switches between them."
       >
         <ProfileList />
       </Section>
@@ -351,6 +383,7 @@ function About() {
           {cli?.state === "missing" ? "not installed" : (serverVersion ?? cli?.version ?? "—")}
         </span>
       </Row>
+      {cli && cli.state !== "missing" ? <Updates /> : null}
       <div className="flex gap-4 px-4 py-3.5 text-ui-sm">
         {link("https://abacus.empero.org", "abacus.empero.org")}
         {link("https://github.com/empero-org/abacus", "Source")}

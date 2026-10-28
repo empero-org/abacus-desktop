@@ -102,16 +102,33 @@ export function messageActions(
             drafts: { ...get().drafts, [thread.threadId]: draft },
             attachments: { ...get().attachments, [thread.threadId]: files },
           });
+        const command = parseCommand(text);
+        // `/steer`: what follows goes to the running turn at once, as Steer
+        // on a queued message sends it; with nothing running it is a message.
+        if (command?.name === "steer") {
+          if (!command.argument && attached.length === 0) {
+            get().notify("Say what to tell the running turn: /steer <message>.", "warning");
+            return;
+          }
+          clear("", []);
+          const steer = { id: ++queueCounter, text: command.argument, attachments: attached };
+          if (!thread.turnId) return sendAsTurn(thread.threadId, steer);
+          setQueue(thread.threadId, [...queueOf(thread.threadId), steer]);
+          return actions.steerQueued(steer.id);
+        }
         // The window's own commands act here and start no turn.
-        const command = attached.length === 0 ? parseCommand(text) : null;
-        if (command && (await runWindowCommand(get(), command.name, command.argument))) {
+        if (
+          command &&
+          attached.length === 0 &&
+          (await runWindowCommand(get(), command.name, command.argument))
+        ) {
           clear("", []);
           return;
         }
         clear("", []);
         // While abacus works a message waits its turn above the composer;
         // `/btw` is the exception, a note meant for the running turn.
-        if (thread.turnId && command?.name !== "btw") {
+        if (thread.turnId && !(command?.name === "btw" && attached.length === 0)) {
           const queued = { id: ++queueCounter, text, attachments: attached };
           setQueue(thread.threadId, [...queueOf(thread.threadId), queued]);
           return;

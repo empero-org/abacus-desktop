@@ -150,6 +150,8 @@ export interface AbacusBridge {
   appInfo(): Promise<AppInfo>;
   /** Re-run CLI detection, after the person installed or updated it. */
   detectCli(): Promise<CliStatus>;
+  /** `abacus update --check`, as the CLI prints it. */
+  checkForUpdate(): Promise<string>;
 
   recentWorkspaces(): Promise<RecentWorkspace[]>;
   /** Every project with sessions, newest activity first; null when the CLI cannot list them. */
@@ -174,8 +176,11 @@ export interface AbacusBridge {
   /** Subscribe to server messages; returns the unsubscribe function. */
   onMessage(listener: (message: ServerMessage) => void): () => void;
 
-  /** Start a shell in the open project; resolves to the terminal's id. */
-  openTerminal(cols: number, rows: number): Promise<number>;
+  /**
+   * Start a shell in the open project, or with `run: "update"` run
+   * `abacus update` (no project needed); resolves to the terminal's id.
+   */
+  openTerminal(cols: number, rows: number, run?: "update"): Promise<number>;
   writeTerminal(id: number, data: string): void;
   resizeTerminal(id: number, cols: number, rows: number): void;
   closeTerminal(id: number): void;

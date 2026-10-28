@@ -47,7 +47,11 @@ describe("commands", () => {
   it("completes a command name by prefix, then by substring", () => {
     const state = commandCompletion("/re", 3, commands, options)!;
     expect(state.kind).toBe("command");
-    expect(state.suggestions.map((item) => item.label).slice(0, 2)).toEqual(["/rename", "/review"]);
+    expect(state.suggestions.map((item) => item.label).slice(0, 3)).toEqual([
+      "/rename",
+      "/repair",
+      "/review",
+    ]);
     const review = state.suggestions.find((item) => item.label === "/review")!;
     expect(review).toMatchObject({ insert: "/review ", badge: "skill", run: false });
     const settings = commandCompletion("/set", 4, commands, options)!.suggestions[0]!;

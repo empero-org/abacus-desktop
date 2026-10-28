@@ -23,6 +23,7 @@ import { addPending, applyNotification, resolvePending, threadFromSnapshot } fro
 import { serverLists } from "./lists.js";
 import { messageActions } from "./messageActions.js";
 import { profileActions } from "./profileActions.js";
+import { agentActions } from "./agentActions.js";
 
 import type { AbacusState } from "./state.js";
 
@@ -63,9 +64,17 @@ export function createAbacusStore(bridge: AbacusBridge) {
       }
     };
 
+    // An abacus too old to report its limits leaves them unknown, and so not offered.
+    const limitsOf = (result: { maxSteps?: number; toolOutputLimit?: number }) =>
+      result.maxSteps !== undefined && result.toolOutputLimit !== undefined
+        ? { maxSteps: result.maxSteps, toolOutputLimit: result.toolOutputLimit }
+        : null;
+
     const applyConfig = (result: ConfigValueResult) => {
       if (result.needsSetup !== undefined) set({ needsSetup: result.needsSetup });
       if (result.idleCompaction !== undefined) set({ idleCompaction: result.idleCompaction });
+      const limits = limitsOf(result);
+      if (limits) set({ agentLimits: limits });
       const thread = get().thread;
       if (!thread) return;
       set({
@@ -153,6 +162,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       view: "chat",
       needsSetup: false,
       idleCompaction: true,
+      agentLimits: null,
       profiles: [],
       providers: [],
       presets: [],
@@ -211,6 +221,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
             capabilities: init.capabilities ?? {},
             needsSetup: init.needsSetup ?? false,
             idleCompaction: init.idleCompaction ?? true,
+            agentLimits: limitsOf(init),
             catalogs: {},
             thread: threadFromSnapshot(init.thread),
             phase: "ready",
@@ -332,33 +343,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       ...profileActions(bridge, get, set, helpers),
       refreshProfiles,
 
-      setMode: (mode) =>
-        guard(async () =>
-          applyConfig(
-            await bridge.request<ConfigValueResult>("config/value/write", {
-              key: "mode",
-              value: mode,
-            }),
-          ),
-        ),
-      setReasoningEffort: (effort) =>
-        guard(async () =>
-          applyConfig(
-            await bridge.request<ConfigValueResult>("config/value/write", {
-              key: "reasoning_effort",
-              value: effort,
-            }),
-          ),
-        ),
-      setIdleCompaction: (enabled) =>
-        guard(async () =>
-          applyConfig(
-            await bridge.request<ConfigValueResult>("config/value/write", {
-              key: "idle_compaction",
-              value: enabled,
-            }),
-          ),
-        ),
+      ...agentActions(bridge, get, set, { guard, applyConfig }),
 
       async attach(files) {
         const thread = get().thread;

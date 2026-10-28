@@ -47,8 +47,15 @@ export class Terminals extends EventEmitter<{ event: [owner: number, event: Term
     super();
   }
 
-  open(owner: number, cwd: string, cols: number, rows: number): number {
-    const { file, args } = defaultShell();
+  /** A shell, or `command` in its place (`abacus update`, which may ask for a password). */
+  open(
+    owner: number,
+    cwd: string,
+    cols: number,
+    rows: number,
+    command: { file: string; args: string[] } = defaultShell(),
+  ): number {
+    const { file, args } = command;
     const pty = this.spawn(file, args, {
       name: "xterm-256color",
       cols: clamp(cols, 2, 1000),

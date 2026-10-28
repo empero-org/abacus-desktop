@@ -19,6 +19,7 @@ function fakeState() {
     setReasoningEffort: vi.fn(async () => {}),
     selectProfile: vi.fn(async () => {}),
     renameThread: vi.fn(async () => {}),
+    runCommand: vi.fn(async () => {}),
     notify: vi.fn(),
   } as unknown as AbacusState & Record<string, ReturnType<typeof vi.fn>>;
 }
@@ -36,6 +37,19 @@ describe("window commands", () => {
     expect(state.selectProfile).toHaveBeenCalledWith("fast");
     expect(await runWindowCommand(state, "fork", "")).toBe(true);
     expect(state.forkThread).toHaveBeenCalledWith();
+  });
+
+  it("has the app server run the terminal's text commands, by any of their names", async () => {
+    const state = fakeState();
+    expect(await runWindowCommand(state, "memory", "forget m2")).toBe(true);
+    expect(state.runCommand).toHaveBeenLastCalledWith("memory", "forget m2");
+    await runWindowCommand(state, "skills", "");
+    expect(state.runCommand).toHaveBeenLastCalledWith("tools", "");
+    await runWindowCommand(state, "goal", "ship the parser");
+    expect(state.runCommand).toHaveBeenLastCalledWith("goal", "ship the parser");
+    // `/steer` is the composer's, and skills are the app server's prompts.
+    expect(await runWindowCommand(state, "steer", "look at tests")).toBe(false);
+    expect(await runWindowCommand(state, "review", "")).toBe(false);
   });
 
   it("explains a bad argument instead of guessing", async () => {

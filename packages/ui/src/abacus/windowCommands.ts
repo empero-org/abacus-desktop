@@ -1,7 +1,9 @@
 // The `/` commands this window carries out itself: switching mode, effort,
-// profile or theme, a new thread or a fork, settings, compaction, renaming. Anything
-// else that starts with a slash goes to the app server, which knows the
-// skills, plugin commands and `/btw`.
+// profile or theme, a new thread or a fork, settings, compaction, renaming,
+// and the terminal's commands that answer with text (`/memory`, `/goal`,
+// `/usage`, `/tools`, `/repair`), which the app server runs. Anything else
+// that starts with a slash goes to the app server as a prompt: skills,
+// plugin commands and `/btw`. `/steer` is the composer's (see messageActions).
 
 import { EFFORT_OPTIONS, MODE_OPTIONS, THEME_OPTIONS } from "./completion.js";
 import type { AgentMode, ReasoningEffort } from "./protocol.js";
@@ -81,6 +83,22 @@ export async function runWindowCommand(
     case "rename":
       if (!argument) state.notify("Give the thread a name: /rename <name>.", "warning");
       else await state.renameThread(argument);
+      return true;
+    // The names the terminal also answers to.
+    case "memory":
+    case "memories":
+      await state.runCommand("memory", argument);
+      return true;
+    case "tools":
+    case "skills":
+    case "plugins":
+    case "mcps":
+      await state.runCommand("tools", "");
+      return true;
+    case "goal":
+    case "usage":
+    case "repair":
+      await state.runCommand(name, argument);
       return true;
     default:
       return false;

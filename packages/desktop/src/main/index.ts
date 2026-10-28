@@ -15,6 +15,7 @@ import {
 } from "electron";
 import { execFile } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import type { ServerMessage, WorkspaceSession } from "@abacus/ui/bridge";
 import { AppServer } from "./appServer.js";
@@ -78,6 +79,8 @@ let recent: RecentWorkspaces;
 let groups: SessionGroups;
 let pins: SidebarPins;
 let terminals: Promise<Terminals> | null = null;
+/** The terminal running `abacus update`, while one does: two installers at once would trip over each other. */
+let updateTerminal: number | null = null;
 
 /**
  * The terminal host, loaded on first use: the pty module is native, and a
@@ -88,6 +91,7 @@ function terminalHost(): Promise<Terminals> {
   terminals ??= import("@lydell/node-pty").then(({ spawn }) => {
     const host = new Terminals(spawn);
     host.on("event", (owner, event) => {
+      if (event.kind === "exit" && event.id === updateTerminal) updateTerminal = null;
       const contents = webContents.fromId(owner);
       if (contents && !contents.isDestroyed()) contents.send("terminal:event", event);
     });
@@ -196,6 +200,22 @@ function syncStatus(): Promise<string> {
   });
 }
 
+/** `abacus update --check`, as the CLI prints it. */
+function updateCheck(): Promise<string> {
+  const bin = resolveCli();
+  if (!bin) return Promise.resolve("The abacus CLI is not installed.");
+  return new Promise((resolve) => {
+    execFile(
+      bin,
+      ["update", "--check"],
+      { timeout: 30_000, windowsHide: true, env: { ...process.env, NO_COLOR: "1" } },
+      (error, stdout, stderr) => {
+        resolve((stdout || stderr || (error ? error.message : "")).trim());
+      },
+    );
+  });
+}
+
 function registerIpc(): void {
   ipcMain.handle("app:info", async () => ({
     version: app.getVersion(),
@@ -203,6 +223,7 @@ function registerIpc(): void {
     cli: await detectCli(),
   }));
   ipcMain.handle("cli:detect", () => detectCli());
+  ipcMain.handle("cli:checkUpdate", () => updateCheck());
 
   ipcMain.handle("workspace:recent", () => recent.existing());
   ipcMain.handle("projects:list", async () => {
@@ -327,9 +348,16 @@ function registerIpc(): void {
     sessionFor(event).respond(id, result);
   });
 
-  ipcMain.handle("terminal:open", async (event, cols: unknown, rows: unknown) => {
+  // `run: "update"` runs `abacus update` in the terminal instead of a shell:
+  // in a terminal, the installer can ask for the password a package needs.
+  // It is the only command a window may ask for by name.
+  ipcMain.handle("terminal:open", async (event, cols: unknown, rows: unknown, run: unknown) => {
+    const update = run === "update";
     const workspace = windowWorkspaces.get(event.sender.id);
-    if (!workspace) throw new Error("open a project first");
+    if (!workspace && !update) throw new Error("open a project first");
+    const bin = update ? resolveCli() : null;
+    if (update && !bin) throw new Error("the abacus CLI is not installed");
+    if (update && updateTerminal !== null) throw new Error("an update is already running");
     let host: Terminals;
     try {
       host = await terminalHost();
@@ -339,7 +367,19 @@ function registerIpc(): void {
         `the terminal is not available on this system (${error instanceof Error ? error.message : error})`,
       );
     }
-    return host.open(event.sender.id, workspace, Number(cols), Number(rows));
+    if (!bin) return host.open(event.sender.id, workspace ?? homedir(), Number(cols), Number(rows));
+    if (updateTerminal !== null) throw new Error("an update is already running");
+    updateTerminal = host.open(
+      event.sender.id,
+      workspace ?? homedir(),
+      Number(cols),
+      Number(rows),
+      {
+        file: bin,
+        args: ["update"],
+      },
+    );
+    return updateTerminal;
   });
   // Keystrokes and resizes are one-way: nothing waits on them.
   const onTerminal =

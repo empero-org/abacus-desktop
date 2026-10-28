@@ -24,6 +24,30 @@ export const WINDOW_COMMANDS: CommandEntry[] = [
   { name: "profile", description: "Switch the profile", kind: "builtin", takesArgument: true },
   { name: "effort", description: "Set the reasoning effort", kind: "builtin", takesArgument: true },
   { name: "compact", description: "Compact the conversation's context", kind: "builtin" },
+  {
+    name: "steer",
+    description: "Tell the running turn something; it reads it after its current step",
+    kind: "builtin",
+    takesArgument: true,
+  },
+  {
+    name: "goal",
+    description: "Set or manage a persistent goal: pause, resume, done, clear, edit",
+    kind: "builtin",
+    takesArgument: true,
+  },
+  {
+    name: "memory",
+    description: "What Abacus remembers here; /memory forget m1 removes one",
+    kind: "builtin",
+    takesArgument: true,
+  },
+  { name: "tools", description: "Tools, skills, plugin commands and MCP tools", kind: "builtin" },
+  {
+    name: "usage",
+    description: "Sessions, tokens and models, all time and this week",
+    kind: "builtin",
+  },
   { name: "rename", description: "Rename this thread", kind: "builtin", takesArgument: true },
   {
     name: "theme",
@@ -32,6 +56,11 @@ export const WINDOW_COMMANDS: CommandEntry[] = [
     takesArgument: true,
   },
   { name: "settings", description: "Open settings", kind: "builtin" },
+  {
+    name: "repair",
+    description: "Fix session history a provider keeps rejecting",
+    kind: "builtin",
+  },
 ];
 
 /** Commands the app server knows but the window passes through as text. */

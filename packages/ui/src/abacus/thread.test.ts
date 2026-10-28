@@ -6,6 +6,7 @@ import {
   isWorking,
   resolvePending,
   threadFromSnapshot,
+  withCommandOutput,
 } from "./thread.js";
 
 const snapshot: ThreadSnapshot = {
@@ -207,6 +208,29 @@ describe("applyNotification", () => {
       { id: "compaction_0", type: "contextCompaction", savedTokens: 398_900 },
       { id: "compaction_1", type: "contextCompaction", savedTokens: 120_000 },
     ]);
+  });
+});
+
+describe("command output", () => {
+  it("joins the transcript where it was asked, and the turn's items follow it", () => {
+    const asked = withCommandOutput(
+      threadFromSnapshot(snapshot),
+      "memory",
+      "No memories here yet.",
+    );
+    const thread = applyNotification(asked, "item/completed", {
+      threadId: "t1",
+      turnId: "turn_1",
+      completedAtMs: 0,
+      item: { id: "item_1", type: "userMessage", text: "go on" },
+    });
+    expect(thread.items.map((item) => item.type)).toEqual(["commandOutput", "userMessage"]);
+    expect(thread.items[0]).toEqual({
+      id: "command_0",
+      type: "commandOutput",
+      command: "memory",
+      text: "No memories here yet.",
+    });
   });
 });
 

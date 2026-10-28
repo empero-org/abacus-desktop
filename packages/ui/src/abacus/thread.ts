@@ -165,6 +165,12 @@ export function applyNotification(thread: ThreadView, method: string, params: un
   }
 }
 
+/** What one of the terminal's commands said, at the end of the transcript. */
+export function withCommandOutput(thread: ThreadView, command: string, text: string): ThreadView {
+  const item: Item = { id: `command_${thread.items.length}`, type: "commandOutput", command, text };
+  return { ...thread, items: [...thread.items, item] };
+}
+
 export function addPending(thread: ThreadView, request: ServerRequest): ThreadView {
   if (request.params.threadId !== thread.threadId) return thread;
   if (thread.pending.some((existing) => existing.id === request.id)) return thread;
