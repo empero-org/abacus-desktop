@@ -241,6 +241,9 @@ function ToolCall({ item }: { item: ToolItem }) {
   const [open, setOpen] = useState(false);
   const Icon = ICONS[item.type];
   const subject = toolSubject(item.name, item.command);
+  // What the agent said the call is for reads in place of the verb, with the
+  // command or pattern beside it, quieter.
+  const description = item.description?.trim();
   const output = item.output?.trimEnd();
   const pending = useAbacus((state) =>
     state.thread?.pending.some(
@@ -255,18 +258,31 @@ function ToolCall({ item }: { item: ToolItem }) {
         className="group/tool flex w-full min-w-0 items-center gap-2 rounded-md py-1 text-left text-ui-base text-foreground-subtle enabled:hover:text-foreground"
       >
         <Icon className="size-4 shrink-0 text-foreground-subtlest" />
-        <span className="shrink-0">{toolVerb(item.name, item.type, item.status)}</span>
-        {/* Resumed history carries no call summary; the tool's name stands in. */}
-        {subject || !standsAlone(item.name) ? (
-          <code
-            className={cn(
-              "min-w-0 truncate font-mono text-ui-sm",
-              subject ? "text-foreground" : "text-foreground-subtlest",
-            )}
-          >
-            {subject || item.name}
-          </code>
-        ) : null}
+        {description ? (
+          <>
+            <span className="max-w-[75%] shrink-0 truncate">{description}</span>
+            {subject ? (
+              <code className="min-w-0 truncate font-mono text-ui-sm text-foreground-subtlest">
+                {subject}
+              </code>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <span className="shrink-0">{toolVerb(item.name, item.type, item.status)}</span>
+            {/* Resumed history carries no call summary; the tool's name stands in. */}
+            {subject || !standsAlone(item.name) ? (
+              <code
+                className={cn(
+                  "min-w-0 truncate font-mono text-ui-sm",
+                  subject ? "text-foreground" : "text-foreground-subtlest",
+                )}
+              >
+                {subject || item.name}
+              </code>
+            ) : null}
+          </>
+        )}
         <StatusMark status={item.status} waiting={Boolean(pending)} />
         {output ? (
           <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-transform group-hover/tool:opacity-100 group-data-[state=open]/tool:rotate-90 group-data-[state=open]/tool:opacity-100" />

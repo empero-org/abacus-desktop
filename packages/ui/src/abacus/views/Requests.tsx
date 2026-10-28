@@ -77,6 +77,7 @@ function ApprovalCard({
           {params.tool}
         </span>
       </div>
+      {params.description ? <p className="text-ui-base">{params.description}</p> : null}
       <pre className="max-h-48 overflow-auto rounded-lg bg-terminal-bg px-3 py-2.5 font-mono text-ui-sm leading-relaxed whitespace-pre-wrap break-words text-terminal-fg">
         {params.details ?? params.command}
       </pre>

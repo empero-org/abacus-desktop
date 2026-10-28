@@ -74,6 +74,8 @@ export type Item =
       command?: string;
       status: ToolStatus;
       output?: string;
+      /** What the call is for, in the agent's words: "Running the unit tests" (CLI 0.7.2 and later). */
+      description?: string;
       /** What a `send_message` call said (CLI 0.7.2 and later). */
       message?: string;
     };
@@ -303,6 +305,8 @@ export interface ApprovalRequestParams {
   reason?: string;
   /** The operation in full: `$ command`, or the change as a diff. */
   details?: string;
+  /** What the call is for, in the agent's words (CLI 0.7.2 and later). */
+  description?: string | null;
   availableDecisions: ApprovalDecision[];
 }
 
