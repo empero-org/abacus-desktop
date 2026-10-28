@@ -1,7 +1,7 @@
 // Where the person writes. Enter sends; the goal and the agent's plan are
 // pinned at the top of the box (GoalBar, PlanBar); while a turn runs, a
-// message waits in a queue below them (QueueBar) and the send button turns
-// into Stop when there is nothing to queue. `/` completes commands and `@` files;
+// message steers it from the stack below them (QueueBar) and the send button
+// turns into Stop when there is nothing to send. `/` completes commands and `@` files;
 // images and text files come in by paste, drop or the attach button. Anything
 // the agent is blocked on (an approval, a question) sits above the box, where
 // the eye already is.
@@ -161,7 +161,7 @@ export function Composer() {
               blocked
                 ? "Answer the request above first"
                 : running
-                  ? "Queue a follow-up…"
+                  ? "Steer abacus — it reads this after its current step"
                   : "Ask abacus anything — / for commands, @ for files"
             }
             className="max-h-[40vh] min-h-[52px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"

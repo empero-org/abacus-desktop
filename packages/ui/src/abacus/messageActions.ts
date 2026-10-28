@@ -1,8 +1,9 @@
 // Sending what the person writes: a new turn when abacus is idle, and while it
-// works, a queue above the composer. The oldest queued message goes when the
-// turn ends; Steer hands one to the running turn, and it stays in the stack
-// until the model reads it after its current step (or, if the turn ends
-// first, it starts the next one); Send now stops the turn and sends one.
+// works, a stack above the composer. A message steers the running turn, as in
+// the terminal: it stays in the stack until the model reads it after its
+// current step (or, if the turn ends first, it starts the next one). A command
+// waits for the turn to end and goes as the next; Steer hands it over sooner,
+// and Send now stops the turn and sends one.
 
 import { inputPart, type Attachment } from "./attachments.js";
 import type { AbacusBridge } from "./bridge.js";
@@ -126,11 +127,13 @@ export function messageActions(
           return;
         }
         clear("", []);
-        // While abacus works a message waits its turn above the composer;
-        // `/btw` is the exception, a note meant for the running turn.
+        // While abacus works a message steers it from the stack above the
+        // composer; a command waits there for a turn of its own. `/btw` is the
+        // app server's: a note meant for the running turn.
         if (thread.turnId && !(command?.name === "btw" && attached.length === 0)) {
           const queued = { id: ++queueCounter, text, attachments: attached };
           setQueue(thread.threadId, [...queueOf(thread.threadId), queued]);
+          if (!command) return actions.steerQueued(queued.id);
           return;
         }
         try {
@@ -154,23 +157,28 @@ export function messageActions(
     steerQueued: (id) =>
       guard(async () => {
         const found = find(id);
-        if (!found || found.message.steering !== undefined) return;
+        if (!found || found.message.steering !== undefined || found.message.steer) return;
         const { threadId, message } = found;
+        const mark = (change: Partial<QueuedMessage>) =>
+          setQueue(
+            threadId,
+            queueOf(threadId).map((entry) => (entry.id === id ? { ...entry, ...change } : entry)),
+          );
+        // Steering from the moment it is handed over, not once the app server answers.
+        mark({ steer: true });
         try {
           const { text } = await bridge.request<{ text?: string }>("turn/steer", {
             threadId,
             input: input(message.text, message.attachments),
           });
           // It stays in the stack until the model reads it.
-          setQueue(
-            threadId,
-            queueOf(threadId).map((entry) =>
-              entry.id === id ? { ...entry, steering: text ?? message.text } : entry,
-            ),
-          );
+          mark({ steering: text ?? message.text });
         } catch (error) {
           // With the turn over there is nothing to steer: it is the next turn.
-          if (get().thread?.turnId) throw error;
+          if (get().thread?.turnId) {
+            mark({ steer: false });
+            throw error;
+          }
           if (take(id)) await sendAsTurn(threadId, message);
         }
       }),

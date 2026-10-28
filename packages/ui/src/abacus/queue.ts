@@ -1,8 +1,8 @@
-// Messages typed while abacus works wait above the composer, stacked, oldest
-// first. When the turn ends the oldest goes as the next turn; Steer hands one
-// to the running turn, where it stays in the stack until the model reads it;
-// Send now stops the turn and sends one. These are the rules, apart from the
-// store so they can be tested.
+// Messages typed while abacus works stack above the composer, oldest first.
+// A message steers the running turn and stays in the stack until the model
+// reads it; a command waits, and goes as the next turn when this one ends,
+// unless Steer hands it over sooner. Send now stops the turn and sends one.
+// These are the rules, apart from the store so they can be tested.
 
 import type { Attachment } from "./attachments.js";
 
@@ -12,11 +12,17 @@ export interface QueuedMessage {
   attachments: Attachment[];
   /** Once steered: the text the app server knows it by, until the model reads it. */
   steering?: string;
+  /** Handed to the running turn: it shows as steering before the app server answers. */
+  steer?: boolean;
 }
 
-/** The message that goes next as a turn of its own: the oldest not already steering. */
+/**
+ * The message that goes next as a turn of its own: the oldest not already
+ * steering. One still being handed over is the app server's, or comes back as
+ * a turn when the steer finds the turn over, so it is not sent from here too.
+ */
 export function nextQueued(queue: QueuedMessage[]): QueuedMessage | undefined {
-  return queue.find((message) => message.steering === undefined);
+  return queue.find((message) => message.steering === undefined && !message.steer);
 }
 
 /** The stack once the model has read the steering message the app server calls `text`. */

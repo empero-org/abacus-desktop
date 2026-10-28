@@ -30,6 +30,14 @@ describe("queued messages", () => {
     expect(nextQueued(queue.slice(0, 1))).toBeUndefined();
   });
 
+  it("leave one still being handed to the turn to the steer", () => {
+    const queue: QueuedMessage[] = [
+      { id: 1, text: "use the other API", attachments: [], steer: true },
+      { id: 2, text: "/review", attachments: [] },
+    ];
+    expect(nextQueued(queue)?.id).toBe(2);
+  });
+
   it("leave the stack once the model reads them, one at a time", () => {
     const queue: QueuedMessage[] = [
       { id: 1, text: "again", attachments: [], steering: "again" },

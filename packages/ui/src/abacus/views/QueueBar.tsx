@@ -1,8 +1,8 @@
 // Messages written while abacus works, stacked at the top of the composer,
-// oldest first. Each waits for the turn to end unless the person hands it
-// over sooner: Steer gives it to the running turn, and it stays here, marked,
-// until the model reads it after its current step; Send now stops the turn
-// and sends it straight away.
+// oldest first. A message steers the running turn, as in the terminal: it
+// stays here, marked, until the model reads it after its current step. A
+// command waits for the turn to end unless Steer hands it over sooner. Send
+// now stops the turn and sends one straight away.
 
 import type { ReactNode } from "react";
 import {
@@ -70,7 +70,7 @@ function QueuedRow({
         <span className="px-2 py-1 text-foreground-subtlest">Sending once the turn stops…</span>
       ) : (
         <>
-          {message.steering !== undefined ? (
+          {message.steering !== undefined || message.steer ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-1 px-2 py-1 text-brand">
