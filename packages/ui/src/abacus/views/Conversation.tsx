@@ -79,6 +79,23 @@ export function Conversation() {
 
 function EmptyThread() {
   const workspace = useAbacus((state) => state.workspace);
+  const chat = useAbacus((state) =>
+    Boolean(workspace && workspace.workspace === state.appInfo?.chats),
+  );
+  if (chat) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 pb-[8vh] text-center">
+        <BrandMark className="size-8 text-foreground" />
+        <h1 className="text-[26px] leading-tight font-medium tracking-[-0.02em] text-balance">
+          What's on your mind?
+        </h1>
+        <p className="max-w-md text-ui-base text-foreground-subtle">
+          Ask anything. In a chat abacus searches the web and runs Python, and works on no project's
+          files.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 pb-[8vh] text-center">
       <BrandMark className="size-8 text-foreground" />

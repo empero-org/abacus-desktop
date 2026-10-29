@@ -5,7 +5,14 @@
 // strip leaves room for the traffic lights.
 
 import { useEffect, useMemo, useState } from "react";
-import { FolderPlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, XIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  FolderPlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  SquarePenIcon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { Project, ProjectSession } from "../bridge.js";
@@ -13,15 +20,26 @@ import { useAbacus } from "../context.js";
 import { arrange, useGroups, type PlacedSession } from "../groups.js";
 import { orderProjects, usePins } from "../pins.js";
 import { BrandMark } from "./BrandMark.js";
+import { ChatList, SectionTabs } from "./ChatList.js";
 import { GroupsSection, NewGroupButton } from "./GroupList.js";
 import { OtherDevices, ProjectGroup } from "./ProjectList.js";
+import { ReportBug } from "./ReportBug.js";
 import { SessionTree } from "./SessionTree.js";
 
 /** How often the sidebar asks again which sessions are open or working elsewhere. */
 const LIVE_REFRESH_MS = 30_000;
 
 export function Sidebar({ platform }: { platform: string | undefined }) {
-  const projects = useSidebarProjects();
+  const all = useSidebarProjects();
+  const chatsPath = useAbacus((state) => state.appInfo?.chats ?? null);
+  const section = useAbacus((state) => (chatsPath ? state.section : "code"));
+  const setSection = useAbacus((state) => state.setSection);
+  // The chats are the sessions of their own folder, not a project.
+  const chats = all.find((project) => project.path === chatsPath) ?? null;
+  const projects = useMemo(
+    () => all.filter((project) => project.path !== chatsPath),
+    [all, chatsPath],
+  );
   const groups = useGroups();
   const pins = usePins();
   useLiveRefresh();
@@ -30,7 +48,6 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
   const setView = useAbacus((state) => state.setView);
   const pickAndOpen = useAbacus((state) => state.pickAndOpen);
   const newThreadIn = useAbacus((state) => state.newThreadIn);
-  const working = useAbacus((state) => Boolean(state.thread?.turnId));
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
 
@@ -78,14 +95,24 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
         {platform !== "darwin" ? <BrandMark className="size-4 text-foreground" /> : null}
         <span className="text-ui-base font-medium tracking-tight">abacus</span>
       </div>
+      {chatsPath ? <SectionTabs section={section} onChange={setSection} /> : null}
 
       <div className="flex flex-col gap-0.5 px-2 pb-3">
-        <SidebarButton
-          icon={SquarePenIcon}
-          label="New thread"
-          disabled={working}
-          onClick={() => void (workspace ? newThreadIn(workspace) : pickAndOpen())}
-        />
+        {section === "chat" && chatsPath ? (
+          <SidebarButton
+            icon={SquarePenIcon}
+            label="New chat"
+            onClick={() => void newThreadIn(chatsPath)}
+          />
+        ) : (
+          <SidebarButton
+            icon={SquarePenIcon}
+            label="New thread"
+            onClick={() =>
+              void (workspace && workspace !== chatsPath ? newThreadIn(workspace) : pickAndOpen())
+            }
+          />
+        )}
         <label className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-ui-base text-foreground-subtle focus-within:bg-hover">
           <SearchIcon className="size-4 shrink-0" />
           <input
@@ -110,8 +137,13 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
         </label>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" aria-label="Projects">
-        {needle ? (
+      <nav
+        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
+        aria-label={section === "chat" ? "Chats" : "Projects"}
+      >
+        {section === "chat" ? (
+          <ChatList chats={chats} needle={needle} />
+        ) : needle ? (
           matches.length === 0 ? (
             <p className="px-2.5 py-4 text-ui-sm text-foreground-subtlest">
               Nothing matches “{query.trim()}”.
@@ -133,7 +165,6 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
                   <button
                     type="button"
                     onClick={() => void pickAndOpen()}
-                    disabled={working}
                     className="rounded-md p-1 text-foreground-subtlest hover:bg-hover hover:text-foreground disabled:opacity-40"
                     aria-label="Open a project"
                   >
@@ -162,15 +193,46 @@ export function Sidebar({ platform }: { platform: string | undefined }) {
         )}
       </nav>
 
-      <div className="px-2 pt-1 pb-2.5">
-        <SidebarButton
-          icon={SettingsIcon}
-          label="Settings"
-          active={view === "settings"}
-          onClick={() => setView(view === "settings" ? "chat" : "settings")}
-        />
+      <div className="flex flex-col gap-1.5 px-2 pt-1 pb-2.5">
+        <UpdateAvailable />
+        <div className="flex items-center gap-1">
+          <SidebarButton
+            icon={SettingsIcon}
+            label="Settings"
+            active={view === "settings"}
+            onClick={() => setView(view === "settings" ? "chat" : "settings")}
+            className="flex-1"
+          />
+          <ReportBug />
+        </div>
       </div>
     </aside>
+  );
+}
+
+/** Above Settings while a newer release of this app or the CLI is out. */
+function UpdateAvailable() {
+  const updates = useAbacus((state) => state.updates);
+  const showUpdates = useAbacus((state) => state.showUpdates);
+  const out = [
+    updates?.desktop ? `Abacus desktop ${updates.desktop.latest}` : null,
+    updates?.cli ? `abacus ${updates.cli.latest}` : null,
+  ].filter(Boolean);
+  if (out.length === 0) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={showUpdates}
+          className="flex items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-left text-ui-base text-foreground hover:bg-hover"
+        >
+          <span className="flex-1">Update available</span>
+          <ArrowRightIcon className="size-4 text-foreground-subtle" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{out.join(" and ")}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -260,12 +322,14 @@ function SidebarButton({
   onClick,
   disabled,
   active,
+  className,
 }: {
   icon: typeof SettingsIcon;
   label: string;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  className?: string;
 }) {
   return (
     <button
@@ -275,6 +339,7 @@ function SidebarButton({
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-ui-base text-foreground hover:bg-hover disabled:opacity-50",
         active && "bg-selected",
+        className,
       )}
     >
       <Icon className="size-4 text-foreground-subtle" />

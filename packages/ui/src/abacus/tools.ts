@@ -9,6 +9,7 @@ type Verbs = readonly [string, string, string];
 
 const BUILT_IN: Record<string, Verbs> = {
   run_command: ["Running", "Ran", "run"],
+  run_python: ["Running Python:", "Ran Python:", "run Python:"],
   read_file: ["Reading", "Read", "read"],
   read_files: ["Reading", "Read", "read"],
   list_files: ["Listing", "Listed", "list"],
@@ -100,6 +101,7 @@ export function toolSubject(name: string, command: string | undefined): string {
 
 const ACTIVITY: Record<string, string> = {
   run_command: "Running a command",
+  run_python: "Running Python",
   web_search: "Searching the web",
   read_page: "Reading a web page",
   read_file: "Reading files",

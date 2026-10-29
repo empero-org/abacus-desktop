@@ -1,6 +1,6 @@
 // The main pane with no project open: open one, or pick up where you left off.
 
-import { FolderOpenIcon } from "lucide-react";
+import { FolderOpenIcon, MessageCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import { useAbacus } from "../context.js";
 import { relativeTime } from "../format.js";
@@ -12,6 +12,9 @@ export function Home() {
   const pickAndOpen = useAbacus((state) => state.pickAndOpen);
   const openSession = useAbacus((state) => state.openSession);
   const openWorkspace = useAbacus((state) => state.openWorkspace);
+  const chats = useAbacus((state) => state.appInfo?.chats ?? null);
+  const newThreadIn = useAbacus((state) => state.newThreadIn);
+  const setSection = useAbacus((state) => state.setSection);
 
   // The latest sessions across projects, so the last thing worked on is one click away.
   const latest = (projects ?? [])
@@ -32,11 +35,25 @@ export function Home() {
             Open a project folder and abacus works in it: reading, changing and running your code,
             with anything risky reviewed before it runs.
           </p>
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button size="lg" onClick={() => void pickAndOpen()} className="gap-2">
               <FolderOpenIcon className="size-4" />
               Open a project
             </Button>
+            {chats ? (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  setSection("chat");
+                  void newThreadIn(chats);
+                }}
+                className="gap-2"
+              >
+                <MessageCircleIcon className="size-4" />
+                Start a chat
+              </Button>
+            ) : null}
           </div>
         </header>
 
@@ -55,7 +72,7 @@ export function Home() {
                       {session.title || "New session"}
                     </span>
                     <span className="shrink-0 text-ui-sm text-foreground-subtle">
-                      {project.name}
+                      {project.path === chats ? "Chat" : project.name}
                     </span>
                     <span className="w-20 shrink-0 text-right text-ui-sm text-foreground-subtlest">
                       {relativeTime(session.updatedAt)}

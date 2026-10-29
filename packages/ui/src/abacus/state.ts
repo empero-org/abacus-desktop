@@ -1,7 +1,14 @@
 // The shape of the window's state and its actions; the store implements it.
 
 import type { Attachment } from "./attachments.js";
-import type { AppInfo, CliStatus, Project, RecentWorkspace, WorkspaceSession } from "./bridge.js";
+import type {
+  AppInfo,
+  CliStatus,
+  Project,
+  RecentWorkspace,
+  UpdateStatus,
+  WorkspaceSession,
+} from "./bridge.js";
 import type { CommandEntry } from "./completion.js";
 import type {
   AgentLimits,
@@ -29,12 +36,31 @@ export interface Notice {
   tone: "info" | "warning" | "error";
 }
 
+/** A bug report or other feedback, as the Report a bug dialog writes it. */
+export interface Report {
+  category: "bug" | "feature" | "performance" | "general";
+  message: string;
+  includeDiagnostics: boolean;
+}
+
+/** A thread the window left while it worked; its app server runs on. */
+export interface ParkedSession {
+  workspace: WorkspaceSession;
+  thread: ThreadView;
+}
+
 export interface AbacusState {
   phase: Phase;
   appInfo: AppInfo | null;
   cli: CliStatus | null;
   recent: RecentWorkspace[];
   workspace: WorkspaceSession | null;
+  /** The app server of the thread the window shows. */
+  server: number | null;
+  /** Threads left while they worked, by the app server that runs each. */
+  parked: Record<number, ParkedSession>;
+  /** Threads that finished a turn while the window showed another. */
+  unread: Record<string, true>;
   serverVersion: string | null;
   /** What the open app server says it can do (`imageInput`, …). */
   capabilities: Record<string, boolean>;
@@ -42,8 +68,14 @@ export interface AbacusState {
   /** Every project with sessions, for the sidebar; null when the CLI cannot list them. */
   projects: Project[] | null;
   thread: ThreadView | null;
+  /** Which list the sidebar shows: the chats, or projects and their threads. */
+  section: "chat" | "code";
   /** The main pane: the open thread, or settings. */
   view: "chat" | "settings";
+  /** Where settings should scroll to once open. */
+  settingsFocus: "updates" | null;
+  /** Newer releases of this app or the CLI, once checked; null until then. */
+  updates: UpdateStatus | null;
   /** No provider or profile yet: the window sets one up before the first turn. */
   needsSetup: boolean;
   /** Whether a long thread left idle is compacted; an abacus setting, not the thread's. */
@@ -83,6 +115,12 @@ export interface AbacusState {
   /** A new thread in `path`, switching project first when it is another. */
   newThreadIn(path: string): Promise<void>;
   setView(view: AbacusState["view"]): void;
+  setSection(section: AbacusState["section"]): void;
+  /** Open settings at the Updates row. */
+  showUpdates(): void;
+  checkUpdates(): Promise<void>;
+  /** Send a report where the terminal's /feedback sends it; why it failed, or null when it went. */
+  sendReport(report: Report): Promise<string | null>;
 
   newThread(): Promise<void>;
   openThread(threadId: string): Promise<void>;

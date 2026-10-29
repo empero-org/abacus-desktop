@@ -8,10 +8,12 @@
 export type RequestId = number | string;
 
 /** Frames the main process forwards from `abacus app-server`. Replies to the window's own requests are not forwarded. */
-export type ServerMessage =
+/** `server`: which of the window's app servers sent it (see `WorkspaceSession`). */
+export type ServerMessage = (
   | { kind: "notification"; method: string; params: unknown }
   | { kind: "request"; id: RequestId; method: string; params: unknown }
-  | { kind: "exit"; code: number | null; tail: string };
+  | { kind: "exit"; code: number | null; tail: string }
+) & { server?: number };
 
 export type CliStatus =
   | { state: "ready"; path: string; version: string }
@@ -28,6 +30,8 @@ export interface AppInfo {
   version: string;
   platform: "darwin" | "linux" | "win32" | string;
   cli: CliStatus;
+  /** The folder chats run in; its sessions are the chats, not a project's. */
+  chats?: string;
 }
 
 /** One saved abacus session, as `abacus sessions --json` lists it. */
@@ -141,9 +145,26 @@ export type TerminalEvent =
   | { kind: "data"; id: number; data: string }
   | { kind: "exit"; id: number; code: number | null };
 
+/** A newer release than the one installed. */
+export interface UpdateTarget {
+  current: string;
+  latest: string;
+}
+
+/** What is newer than what runs: this app, and the CLI; null where nothing is. */
+export interface UpdateStatus {
+  desktop: UpdateTarget | null;
+  cli: UpdateTarget | null;
+}
+
 export interface WorkspaceSession {
   workspace: string;
   name: string;
+  /**
+   * Which of the window's app servers runs it. A window runs more than one
+   * when a thread it left is still working.
+   */
+  server?: number;
 }
 
 export interface AbacusBridge {
@@ -152,6 +173,8 @@ export interface AbacusBridge {
   detectCli(): Promise<CliStatus>;
   /** `abacus update --check`, as the CLI prints it. */
   checkForUpdate(): Promise<string>;
+  /** Whether newer releases of this app or the CLI are out. */
+  checkUpdates(): Promise<UpdateStatus>;
 
   recentWorkspaces(): Promise<RecentWorkspace[]>;
   /** Every project with sessions, newest activity first; null when the CLI cannot list them. */
@@ -161,18 +184,26 @@ export interface AbacusBridge {
   forgetWorkspace(path: string): Promise<RecentWorkspace[]>;
   /** Show the folder picker; null when cancelled. */
   pickWorkspace(): Promise<string | null>;
-  /** Start `abacus app-server` for this window in `path`. */
-  openWorkspace(path: string): Promise<WorkspaceSession>;
+  /**
+   * Start `abacus app-server` for this window in `path`. The server of the
+   * thread shown until now keeps running when `keep` (it is still working);
+   * otherwise it stops.
+   */
+  openWorkspace(path: string, keep?: boolean): Promise<WorkspaceSession>;
+  /** Show a parked server's thread again, parking the shown one when `keep`. */
+  activateSession(server: number, keep: boolean): Promise<WorkspaceSession>;
+  /** Let a parked server go. */
+  stopSession(server: number): Promise<void>;
   closeWorkspace(): Promise<void>;
   /** The workspace this window was opened for, if it was opened for one. */
   launchWorkspace(): Promise<string | null>;
   /** Open another window, optionally straight into a workspace. */
   newWindow(path?: string): Promise<void>;
 
-  /** A JSON-RPC request to the app server; rejects with its error message. */
-  request<T = unknown>(method: string, params?: unknown): Promise<T>;
+  /** A JSON-RPC request to the shown app server, or `server`; rejects with its error message. */
+  request<T = unknown>(method: string, params?: unknown, server?: number): Promise<T>;
   /** Answer a server request (an approval or a question) the agent is blocked on. */
-  respond(id: RequestId, result: unknown): Promise<void>;
+  respond(id: RequestId, result: unknown, server?: number): Promise<void>;
   /** Subscribe to server messages; returns the unsubscribe function. */
   onMessage(listener: (message: ServerMessage) => void): () => void;
 

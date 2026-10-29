@@ -13,14 +13,13 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from "electron";
-import { execFile } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import type { ServerMessage, WorkspaceSession } from "@abacus/ui/bridge";
-import { AppServer } from "./appServer.js";
+import { Sessions } from "./sessions.js";
 import { workspaceFromArgv } from "./argv.js";
-import { detectCli, resolveCli } from "./cli.js";
+import { cliSays, compareVersions, detectCli, resolveCli } from "./cli.js";
 import { listSessions, mergeProjects } from "./projects.js";
 import { Browser } from "./browser.js";
 import { BROWSER_TOOLS, isBrowserTool, runBrowserTool } from "./browserTools.js";
@@ -28,12 +27,35 @@ import { SessionGroups } from "./groups.js";
 import { SidebarPins } from "./pins.js";
 import { RecentWorkspaces } from "./recent.js";
 import { Terminals } from "./terminal.js";
+import { checkUpdates } from "./updates.js";
 import { createWindow, isExternalUrl, rendererPaths } from "./window.js";
 
 const OUT_DIR = join(__dirname, "..");
 const DEV_SERVER_URL = process.env.ABACUS_DESKTOP_DEV_URL;
 
-const sessions = new Map<number, AppServer>();
+const sessions = new Sessions({
+  frame(contents, id, server, frame) {
+    // The agent driving the browser: answered here, where the browser is.
+    if (frame.kind === "request" && frame.method === "tool/call") {
+      const { name, arguments: args } = (frame.params ?? {}) as {
+        name?: string;
+        arguments?: Record<string, unknown>;
+      };
+      if (isBrowserTool(name)) {
+        if (!contents.isDestroyed()) contents.send("browser:agent");
+        void runBrowserTool(browserFor(contents), name!, args ?? {}).then((answer) => {
+          if (server.running) server.respond(frame.id, answer);
+        });
+        return;
+      }
+    }
+    send(contents, { ...frame, server: id });
+  },
+  exit: (contents, id, code, tail) => send(contents, { kind: "exit", code, tail, server: id }),
+  log(line) {
+    if (DEV_SERVER_URL) console.error(`[abacus] ${line}`);
+  },
+});
 /** Each window's browser, made when first used. */
 const browsers = new Map<number, Browser>();
 
@@ -72,6 +94,14 @@ async function detectDevServer(): Promise<string | null> {
   );
   return answers.find(Boolean) ?? null;
 }
+
+/**
+ * Where chats live: a folder of their own, opened with `app-server --chat`,
+ * so a chat has no project's files to work on.
+ */
+let chatsDir = "";
+/** The first CLI that holds a chat. */
+const CHAT_CLI = "0.7.6";
 
 /** The project each window has open; outlives an app server that crashed. */
 const windowWorkspaces = new Map<number, string>();
@@ -112,7 +142,7 @@ function openWindow(workspace?: string): BrowserWindow {
     launchWorkspaces.set(id, workspace);
   }
   window.on("closed", () => {
-    stopSession(id);
+    sessions.closeWindow(id);
     closeTerminals(id);
     browsers.get(id)?.destroy();
     browsers.delete(id);
@@ -128,92 +158,47 @@ function send(contents: WebContents, message: ServerMessage): void {
   if (!contents.isDestroyed()) contents.send("abacus:message", message);
 }
 
-function stopSession(id: number): void {
-  const session = sessions.get(id);
-  if (!session) return;
-  sessions.delete(id);
-  session.removeAllListeners();
-  session.stop();
+/** What the window calls a workspace: the folder's name, or "Chats". */
+function nameOf(workspace: string): string {
+  return workspace === chatsDir ? "Chats" : basename(workspace) || workspace;
 }
 
-function sessionFor(event: IpcMainInvokeEvent): AppServer {
-  const session = sessions.get(event.sender.id);
-  if (!session?.running) throw new Error("no workspace is open in this window");
-  return session;
-}
-
-async function openWorkspace(event: IpcMainInvokeEvent, path: unknown): Promise<WorkspaceSession> {
+/** Open `path` (or the chats) in the window, keeping the thread it showed running when `keep`. */
+async function openWorkspace(
+  event: IpcMainInvokeEvent,
+  path: unknown,
+  keep: unknown,
+): Promise<WorkspaceSession> {
+  const chat = path === chatsDir;
+  if (chat) mkdirSync(chatsDir, { recursive: true });
   if (typeof path !== "string" || !existsSync(path) || !statSync(path).isDirectory()) {
     throw new Error("that folder no longer exists");
   }
   const bin = resolveCli();
   if (!bin) throw new Error("the abacus CLI is not installed");
-  stopSession(event.sender.id);
-  // Terminals open in the project; a new project gets new ones.
-  closeTerminals(event.sender.id);
-  windowWorkspaces.set(event.sender.id, path);
-
-  const server = new AppServer(bin, path);
+  if (chat) {
+    const cli = await detectCli();
+    if (cli.state === "missing" || compareVersions(cli.version, CHAT_CLI) < 0)
+      throw new Error(`Chats need abacus ${CHAT_CLI} or newer. Update it in Settings, About.`);
+  }
   const contents = event.sender;
-  server.on("frame", (frame) => {
-    // The agent driving the browser: answered here, where the browser is.
-    if (frame.kind === "request" && frame.method === "tool/call") {
-      const { name, arguments: args } = (frame.params ?? {}) as {
-        name?: string;
-        arguments?: Record<string, unknown>;
-      };
-      if (isBrowserTool(name)) {
-        if (!contents.isDestroyed()) contents.send("browser:agent");
-        void runBrowserTool(browserFor(contents), name!, args ?? {}).then((answer) => {
-          if (server.running) server.respond(frame.id, answer);
-        });
-        return;
-      }
-    }
-    send(contents, frame);
-  });
-  server.on("exit", (code, tail) => {
-    if (sessions.get(contents.id) === server) sessions.delete(contents.id);
-    send(contents, { kind: "exit", code, tail });
-  });
-  server.on("log", (line) => {
-    if (DEV_SERVER_URL) console.error(`[abacus] ${line}`);
-  });
-  server.start();
-  sessions.set(contents.id, server);
-  recent.touch(path);
-  return { workspace: path, name: basename(path) || path };
+  // Terminals open in the project; a new project gets new ones.
+  if (windowWorkspaces.get(contents.id) !== path) closeTerminals(contents.id);
+  windowWorkspaces.set(contents.id, path);
+  const server = sessions.start(contents, bin, path, keep === true, chat ? ["--chat"] : []);
+  // The chats are not a project to come back to.
+  if (!chat) recent.touch(path);
+  return { workspace: path, name: nameOf(path), server };
 }
 
-function syncStatus(): Promise<string> {
-  const bin = resolveCli();
-  if (!bin) return Promise.resolve("The abacus CLI is not installed.");
-  return new Promise((resolve) => {
-    execFile(
-      bin,
-      ["sync", "status"],
-      { timeout: 20_000, windowsHide: true, env: { ...process.env, NO_COLOR: "1" } },
-      (error, stdout, stderr) => {
-        resolve((stdout || stderr || (error ? error.message : "")).trim());
-      },
-    );
-  });
-}
-
-/** `abacus update --check`, as the CLI prints it. */
-function updateCheck(): Promise<string> {
-  const bin = resolveCli();
-  if (!bin) return Promise.resolve("The abacus CLI is not installed.");
-  return new Promise((resolve) => {
-    execFile(
-      bin,
-      ["update", "--check"],
-      { timeout: 30_000, windowsHide: true, env: { ...process.env, NO_COLOR: "1" } },
-      (error, stdout, stderr) => {
-        resolve((stdout || stderr || (error ? error.message : "")).trim());
-      },
-    );
-  });
+/** Show a parked thread again. */
+function activateSession(event: IpcMainInvokeEvent, id: unknown, keep: unknown): WorkspaceSession {
+  if (typeof id !== "number") throw new Error("id must be a number");
+  const contents = event.sender;
+  const { workspace } = sessions.activate(contents, id, keep === true);
+  if (windowWorkspaces.get(contents.id) !== workspace) closeTerminals(contents.id);
+  windowWorkspaces.set(contents.id, workspace);
+  return { workspace, name: nameOf(workspace), server: id };
 }
 
 function registerIpc(): void {
@@ -221,9 +206,14 @@ function registerIpc(): void {
     version: app.getVersion(),
     platform: process.platform,
     cli: await detectCli(),
+    chats: chatsDir,
   }));
   ipcMain.handle("cli:detect", () => detectCli());
-  ipcMain.handle("cli:checkUpdate", () => updateCheck());
+  ipcMain.handle("cli:checkUpdate", () => cliSays(["update", "--check"], 30_000));
+  ipcMain.handle("updates:check", async () => {
+    const cli = await detectCli();
+    return checkUpdates(app.getVersion(), cli.state === "missing" ? null : cli.version);
+  });
 
   ipcMain.handle("workspace:recent", () => recent.existing());
   ipcMain.handle("projects:list", async () => {
@@ -246,7 +236,7 @@ function registerIpc(): void {
     tellOtherWindows(event.sender, "pins:changed", saved);
     return saved;
   });
-  ipcMain.handle("sync:status", () => syncStatus());
+  ipcMain.handle("sync:status", () => cliSays(["sync", "status"], 20_000));
   ipcMain.handle("workspace:forget", (_event, path: unknown) =>
     typeof path === "string" ? recent.forget(path) : recent.list(),
   );
@@ -263,8 +253,12 @@ function registerIpc(): void {
   });
   ipcMain.handle("workspace:launch", (event) => launchWorkspaces.get(event.sender.id) ?? null);
   ipcMain.handle("workspace:open", openWorkspace);
+  ipcMain.handle("session:activate", activateSession);
+  ipcMain.handle("session:stop", (event, id: unknown) => {
+    if (typeof id === "number") sessions.stop(event.sender, id);
+  });
   ipcMain.handle("workspace:close", (event) => {
-    stopSession(event.sender.id);
+    sessions.stopActive(event.sender);
     closeTerminals(event.sender.id);
     windowWorkspaces.delete(event.sender.id);
   });
@@ -272,9 +266,9 @@ function registerIpc(): void {
     openWindow(typeof path === "string" ? path : undefined);
   });
 
-  ipcMain.handle("abacus:request", async (event, method: unknown, params: unknown) => {
+  ipcMain.handle("abacus:request", async (event, method: unknown, params: unknown, id: unknown) => {
     if (typeof method !== "string") throw new Error("method must be a string");
-    const session = sessionFor(event);
+    const session = sessions.get(event.sender, typeof id === "number" ? id : undefined);
     const result = await session.request(method, params ?? {});
     // Lend the agent the browser, where the app server takes tools from us.
     if (
@@ -342,10 +336,10 @@ function registerIpc(): void {
         : null,
     );
   });
-  ipcMain.handle("abacus:respond", (event, id: unknown, result: unknown) => {
+  ipcMain.handle("abacus:respond", (event, id: unknown, result: unknown, server: unknown) => {
     if (typeof id !== "string" && typeof id !== "number")
       throw new Error("id must be a string or number");
-    sessionFor(event).respond(id, result);
+    sessions.get(event.sender, typeof server === "number" ? server : undefined).respond(id, result);
   });
 
   // `run: "update"` runs `abacus update` in the terminal instead of a shell:
@@ -436,6 +430,7 @@ if (!app.requestSingleInstanceLock()) {
     recent = RecentWorkspaces.in(app.getPath("userData"));
     groups = SessionGroups.in(app.getPath("userData"));
     pins = SidebarPins.in(app.getPath("userData"));
+    chatsDir = join(app.getPath("userData"), "chats");
     registerIpc();
     openWindow(workspaceFromArgv(process.argv, process.cwd(), app.isPackaged));
     app.on("activate", () => {
@@ -447,7 +442,5 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== "darwin") app.quit();
   });
 
-  app.on("before-quit", () => {
-    for (const id of sessions.keys()) stopSession(id);
-  });
+  app.on("before-quit", () => sessions.stopAll());
 }

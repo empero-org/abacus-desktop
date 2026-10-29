@@ -3,7 +3,7 @@
 // are abacus's own (~/.abacus/config.toml), so a change here is the change
 // `/config` would make in the terminal.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { MonitorIcon, MoonIcon, RefreshCwIcon, SunIcon, XIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import {
@@ -361,6 +361,12 @@ function About() {
   const appInfo = useAbacus((state) => state.appInfo);
   const cli = useAbacus((state) => state.cli);
   const serverVersion = useAbacus((state) => state.serverVersion);
+  const focus = useAbacus((state) => state.settingsFocus);
+  // "Update available" in the sidebar opens settings here.
+  const updates = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focus === "updates") updates.current?.scrollIntoView({ block: "center" });
+  }, [focus]);
   const link = (url: string, label: string) => (
     <button
       type="button"
@@ -383,7 +389,11 @@ function About() {
           {cli?.state === "missing" ? "not installed" : (serverVersion ?? cli?.version ?? "—")}
         </span>
       </Row>
-      {cli && cli.state !== "missing" ? <Updates /> : null}
+      {cli && cli.state !== "missing" ? (
+        <div ref={updates}>
+          <Updates />
+        </div>
+      ) : null}
       <div className="flex gap-4 px-4 py-3.5 text-ui-sm">
         {link("https://abacus.empero.org", "abacus.empero.org")}
         {link("https://github.com/empero-org/abacus", "Source")}

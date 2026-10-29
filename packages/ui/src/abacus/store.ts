@@ -24,6 +24,8 @@ import { serverLists } from "./lists.js";
 import { messageActions } from "./messageActions.js";
 import { profileActions } from "./profileActions.js";
 import { agentActions } from "./agentActions.js";
+import { updateActions, watchUpdates } from "./updateActions.js";
+import { busy, park, savedSection, sessionActions, unanswerable } from "./sessionActions.js";
 
 import type { AbacusState } from "./state.js";
 
@@ -91,8 +93,14 @@ export function createAbacusStore(bridge: AbacusBridge) {
 
     const helpers = { guard, attempt, applyConfig, refreshProfiles, errorMessage };
     const messages = messageActions(bridge, get, set, guard);
+    const sessions = sessionActions(bridge, get, set, { guard, refreshTasks });
 
     const onMessage = (message: ServerMessage) => {
+      // A thread the window left, still working.
+      if (message.server !== undefined && message.server !== get().server) {
+        sessions.onParked({ ...message, server: message.server });
+        return;
+      }
       if (message.kind === "exit") {
         set({ phase: "crashed", crash: { code: message.code, tail: message.tail } });
         return;
@@ -102,10 +110,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
         const thread = get().thread;
         if (!request || !thread) {
           // Never leave the agent blocked on something this window cannot show.
-          void bridge.respond(
-            message.id,
-            message.method === "tool/requestUserInput" ? { selected: [] } : { decision: "decline" },
-          );
+          void bridge.respond(message.id, unanswerable(message.method));
           return;
         }
         set({ thread: addPending(thread, request) });
@@ -154,12 +159,18 @@ export function createAbacusStore(bridge: AbacusBridge) {
       cli: null,
       recent: [],
       workspace: null,
+      server: null,
+      parked: {},
+      unread: {},
       serverVersion: null,
       capabilities: {},
       threads: [],
       projects: null,
       thread: null,
+      section: savedSection(),
       view: "chat",
+      settingsFocus: null,
+      updates: null,
       needsSetup: false,
       idleCompaction: true,
       agentLimits: null,
@@ -186,6 +197,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
         unsubscribe?.();
         unsubscribe = bridge.onMessage(onMessage);
         void get().refreshProjects();
+        watchUpdates(get);
         if (launch && appInfo.cli.state === "ready") await get().openWorkspace(launch);
       },
 
@@ -200,18 +212,22 @@ export function createAbacusStore(bridge: AbacusBridge) {
       },
 
       async openWorkspace(path) {
+        // A thread still working keeps its server: it runs on, parked.
+        const keep = busy(get());
+        if (keep) park(get, set);
         set({
           phase: "connecting",
           crash: null,
           thread: null,
+          server: null,
           threads: [],
           tasks: [],
-          queued: {},
-          sendingNow: {},
           view: "chat",
         });
         try {
-          const workspace = await bridge.openWorkspace(path);
+          const workspace = await bridge.openWorkspace(path, keep);
+          // Before its first frame, so the window knows the frames are its own.
+          set({ server: workspace.server ?? null });
           const init = await bridge.request<InitializeResult>("initialize", {
             clientInfo: { name: "abacus-desktop", version: get().appInfo?.version ?? "0.0.0" },
           });
@@ -245,6 +261,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
         set({
           phase: "welcome",
           workspace: null,
+          server: null,
           thread: null,
           threads: [],
           recent: await bridge.recentWorkspaces(),
@@ -265,40 +282,11 @@ export function createAbacusStore(bridge: AbacusBridge) {
         }
       },
 
-      async openSession(path, threadId) {
-        set({ view: "chat" });
-        if (get().workspace?.workspace !== path || get().phase !== "ready") {
-          await get().openWorkspace(path);
-          if (get().phase !== "ready") return;
-        }
-        await get().openThread(threadId);
-      },
-
-      async newThreadIn(path) {
-        set({ view: "chat" });
-        // A freshly started app server opens on a new thread already.
-        if (get().workspace?.workspace !== path || get().phase !== "ready")
-          return get().openWorkspace(path);
-        await get().newThread();
-      },
-
       setView(view) {
-        set({ view });
+        set({ view, settingsFocus: null });
       },
 
-      newThread: () =>
-        guard(async () => {
-          const snapshot = await bridge.request<ThreadSnapshot>("thread/start");
-          set({ thread: threadFromSnapshot(snapshot), view: "chat" });
-        }),
-
-      openThread: (threadId) =>
-        guard(async () => {
-          set({ view: "chat" });
-          if (get().thread?.threadId === threadId) return;
-          const snapshot = await bridge.request<ThreadSnapshot>("thread/resume", { threadId });
-          set({ thread: threadFromSnapshot(snapshot) });
-        }),
+      ...sessions.actions,
 
       forkThread: (threadId) =>
         guard(async () => {
@@ -344,6 +332,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       refreshProfiles,
 
       ...agentActions(bridge, get, set, { guard, applyConfig }),
+      ...updateActions(bridge, get, set, errorMessage),
 
       async attach(files) {
         const thread = get().thread;

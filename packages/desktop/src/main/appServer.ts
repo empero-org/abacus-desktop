@@ -66,6 +66,8 @@ export class AppServer extends EventEmitter<AppServerEvents> {
   constructor(
     readonly bin: string,
     readonly workspace: string,
+    /** After `app-server`: `--chat` for the chats. */
+    readonly args: string[] = [],
   ) {
     super();
   }
@@ -76,7 +78,7 @@ export class AppServer extends EventEmitter<AppServerEvents> {
 
   start(): void {
     // The workspace is a positional argument, before the subcommand.
-    const child = spawn(this.bin, [this.workspace, "app-server"], {
+    const child = spawn(this.bin, [this.workspace, "app-server", ...this.args], {
       cwd: this.workspace,
       env: { ...process.env, NO_COLOR: "1" },
       stdio: ["pipe", "pipe", "pipe"],

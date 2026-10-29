@@ -57,6 +57,22 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+/** What `abacus <args>` prints (`sync status`, `update --check`), or why it could not run. */
+export function cliSays(args: string[], timeout: number): Promise<string> {
+  const bin = resolveCli();
+  if (!bin) return Promise.resolve("The abacus CLI is not installed.");
+  return new Promise((resolve) => {
+    execFile(
+      bin,
+      args,
+      { timeout, windowsHide: true, env: { ...process.env, NO_COLOR: "1" } },
+      (error, stdout, stderr) => {
+        resolve((stdout || stderr || (error ? error.message : "")).trim());
+      },
+    );
+  });
+}
+
 export function cliVersion(bin: string): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(bin, ["--version"], { timeout: 10_000, windowsHide: true }, (error, stdout) => {

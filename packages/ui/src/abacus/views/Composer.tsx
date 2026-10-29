@@ -47,6 +47,10 @@ import { Requests } from "./Requests.js";
 
 export function Composer() {
   const thread = useAbacus((state) => state.thread);
+  // A chat has no project files to name with @.
+  const chat = useAbacus((state) =>
+    Boolean(state.workspace && state.workspace.workspace === state.appInfo?.chats),
+  );
   const draft = useAbacus((state) =>
     state.thread ? (state.drafts[state.thread.threadId] ?? "") : "",
   );
@@ -162,7 +166,9 @@ export function Composer() {
                 ? "Answer the request above first"
                 : running
                   ? "Steer abacus — it reads this after its current step"
-                  : "Ask abacus anything — / for commands, @ for files"
+                  : chat
+                    ? "Ask abacus anything"
+                    : "Ask abacus anything — / for commands, @ for files"
             }
             className="max-h-[40vh] min-h-[52px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"
             aria-label="Message"

@@ -47,7 +47,6 @@ export function ProjectGroup({
   pinned?: boolean;
 }) {
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
-  const working = useAbacus((state) => Boolean(state.thread?.turnId));
   const newThreadIn = useAbacus((state) => state.newThreadIn);
   const current = project.path === workspace;
   // Every project shows its latest sessions without being opened; folding
@@ -100,7 +99,6 @@ export function ProjectGroup({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                disabled={working}
                 onClick={() => void newThreadIn(project.path)}
                 className="rounded-md p-1 text-foreground-subtlest hover:bg-hover hover:text-foreground disabled:opacity-40"
                 aria-label={`New thread in ${project.name}`}

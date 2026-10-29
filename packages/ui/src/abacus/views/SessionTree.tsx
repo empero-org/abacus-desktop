@@ -7,6 +7,7 @@ import {
   EllipsisIcon,
   GitBranchIcon,
   LayersIcon,
+  LoaderIcon,
   PinIcon,
   PinOffIcon,
   PlusIcon,
@@ -23,7 +24,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { SessionLive } from "../bridge.js";
 import { useAbacus } from "../context.js";
 import { relativeTime } from "../format.js";
@@ -39,6 +39,7 @@ import {
   type PlacedSession,
 } from "../groups.js";
 import { changePins, toggleSessionPin, usePins } from "../pins.js";
+import { backgroundState } from "../sessionActions.js";
 
 /** Sessions and, under each, the forks made from it. */
 export function SessionTree({
@@ -46,6 +47,7 @@ export function SessionTree({
   depth = 0,
   showProject = false,
   pinned = false,
+  chat = false,
 }: {
   entries: PlacedSession[];
   depth?: number;
@@ -53,6 +55,8 @@ export function SessionTree({
   showProject?: boolean;
   /** The pinned sessions, which show a pin where a project shows its folder. */
   pinned?: boolean;
+  /** The chats, which no project heads: they start at the list's edge. */
+  chat?: boolean;
 }) {
   return entries.map((entry) => (
     <SessionBranch
@@ -61,6 +65,7 @@ export function SessionTree({
       depth={depth}
       showProject={showProject}
       pinned={pinned}
+      chat={chat}
     />
   ));
 }
@@ -70,21 +75,30 @@ function SessionBranch({
   depth,
   showProject,
   pinned,
+  chat,
 }: {
   entry: PlacedSession;
   depth: number;
   showProject: boolean;
   pinned: boolean;
+  chat: boolean;
 }) {
   return (
     <>
-      <SessionRow entry={entry} depth={depth} showProject={showProject} pinned={pinned} />
+      <SessionRow
+        entry={entry}
+        depth={depth}
+        showProject={showProject}
+        pinned={pinned}
+        chat={chat}
+      />
       {entry.forks.length > 0 ? (
         <SessionTree
           entries={entry.forks}
           depth={depth + 1}
           showProject={showProject}
           pinned={pinned}
+          chat={chat}
         />
       ) : null}
     </>
@@ -104,20 +118,23 @@ function SessionRow({
   depth,
   showProject,
   pinned,
+  chat,
 }: {
   entry: PlacedSession;
   depth: number;
   showProject: boolean;
   pinned: boolean;
+  chat: boolean;
 }) {
   const activeId = useAbacus((state) => state.thread?.threadId);
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const view = useAbacus((state) => state.view);
   const running = useAbacus((state) => Boolean(state.thread?.turnId));
   const openSession = useAbacus((state) => state.openSession);
+  const background = useAbacus((state) => backgroundState(state, session.id));
+  const unread = useAbacus((state) => Boolean(state.unread[session.id]));
   const active = view === "chat" && workspace === project.path && activeId === session.id;
-  const disabled = running && !active;
-  const title = session.title || "New session";
+  const title = session.title || (chat ? "New chat" : "New session");
 
   const row = (
     <button
@@ -128,10 +145,11 @@ function SessionRow({
         event.dataTransfer.effectAllowed = "move";
       }}
       onClick={() => void openSession(project.path, session.id)}
-      disabled={disabled}
       aria-current={active ? "page" : undefined}
       title={showProject ? `${project.name} · ${title}` : undefined}
-      style={{ paddingLeft: (pinned ? PINNED_INDENT_PX : ROW_INDENT_PX) + depth * FORK_INDENT_PX }}
+      style={{
+        paddingLeft: (pinned || chat ? PINNED_INDENT_PX : ROW_INDENT_PX) + depth * FORK_INDENT_PX,
+      }}
       className={cn(
         "flex w-full min-w-0 items-center gap-2 rounded-lg py-1.5 pr-2.5 text-left text-ui-base text-foreground-subtle hover:bg-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
         active && "bg-selected text-foreground hover:bg-selected",
@@ -151,6 +169,14 @@ function SessionRow({
       <span className="flex shrink-0 items-center group-hover/session:invisible group-has-[[aria-expanded=true]]/session:invisible">
         {active && running ? (
           <span className="size-1.5 animate-pulse rounded-full bg-brand" aria-label="Working" />
+        ) : background && !active ? (
+          <BackgroundMark state={background} />
+        ) : unread && !active ? (
+          <span
+            title="Finished while you were away"
+            aria-label="Finished while you were away"
+            className="size-2 rounded-full bg-brand shadow-[0_0_6px_1px] shadow-brand/70"
+          />
         ) : session.live && !active ? (
           <LiveDot live={session.live} />
         ) : (
@@ -163,16 +189,7 @@ function SessionRow({
   );
   return (
     <li className="group/session relative">
-      {disabled ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="block">{row}</span>
-          </TooltipTrigger>
-          <TooltipContent side="right">Finish or stop the running turn first</TooltipContent>
-        </Tooltip>
-      ) : (
-        row
-      )}
+      {row}
       <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-hover/session:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
         <SessionMenu
           sessionId={session.id}
@@ -181,6 +198,25 @@ function SessionRow({
         />
       </div>
     </li>
+  );
+}
+
+/** A thread this window left while it worked: still working, or waiting on the person. */
+function BackgroundMark({ state }: { state: "working" | "waiting" }) {
+  if (state === "waiting") {
+    return (
+      <span
+        title="Needs you"
+        aria-label="Needs you"
+        className="size-2 animate-pulse rounded-full bg-warning shadow-[0_0_6px_1px] shadow-warning/70"
+      />
+    );
+  }
+  return (
+    <LoaderIcon
+      aria-label="Working"
+      className="size-3.5 animate-spin text-brand drop-shadow-[0_0_4px_var(--color-brand)]"
+    />
   );
 }
 

@@ -15,19 +15,22 @@ const bridge: AbacusBridge = {
   appInfo: () => ipcRenderer.invoke("app:info"),
   detectCli: () => ipcRenderer.invoke("cli:detect"),
   checkForUpdate: () => ipcRenderer.invoke("cli:checkUpdate"),
+  checkUpdates: () => ipcRenderer.invoke("updates:check"),
 
   recentWorkspaces: () => ipcRenderer.invoke("workspace:recent"),
   listProjects: () => ipcRenderer.invoke("projects:list"),
   syncStatus: () => ipcRenderer.invoke("sync:status"),
   forgetWorkspace: (path) => ipcRenderer.invoke("workspace:forget", path),
   pickWorkspace: () => ipcRenderer.invoke("workspace:pick"),
-  openWorkspace: (path) => ipcRenderer.invoke("workspace:open", path),
+  openWorkspace: (path, keep) => ipcRenderer.invoke("workspace:open", path, keep),
+  activateSession: (server, keep) => ipcRenderer.invoke("session:activate", server, keep),
+  stopSession: (server) => ipcRenderer.invoke("session:stop", server),
   closeWorkspace: () => ipcRenderer.invoke("workspace:close"),
   newWindow: (path) => ipcRenderer.invoke("window:new", path),
   launchWorkspace: () => ipcRenderer.invoke("workspace:launch"),
 
-  request: (method, params) => ipcRenderer.invoke("abacus:request", method, params),
-  respond: (id, result) => ipcRenderer.invoke("abacus:respond", id, result),
+  request: (method, params, server) => ipcRenderer.invoke("abacus:request", method, params, server),
+  respond: (id, result, server) => ipcRenderer.invoke("abacus:respond", id, result, server),
   onMessage: (listener) => {
     const handler = (_event: IpcRendererEvent, message: ServerMessage) => listener(message);
     ipcRenderer.on("abacus:message", handler);

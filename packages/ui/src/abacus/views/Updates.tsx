@@ -17,6 +17,7 @@ type UpdateState =
 /** The About section's Updates row, and the update's terminal once it runs. */
 export function Updates() {
   const refreshCli = useAbacus((state) => state.refreshCli);
+  const available = useAbacus((state) => state.updates);
   const [update, setUpdate] = useState<UpdateState>({ kind: "idle", checked: null });
   // Each Update is a terminal of its own; one that finished does not start again.
   const [runs, setRuns] = useState(0);
@@ -32,10 +33,16 @@ export function Updates() {
     void refreshCli();
   };
 
+  const out = [
+    available?.desktop ? `Abacus desktop ${available.desktop.latest}` : null,
+    available?.cli ? `abacus ${available.cli.latest}` : null,
+  ].filter(Boolean);
   const hint =
     update.kind === "idle"
       ? (update.checked ??
-        "Runs abacus update: the CLI, and this app if the installer put it here.")
+        (out.length > 0
+          ? `${out.join(" and ")} ${out.length > 1 ? "are" : "is"} out. Update installs ${out.length > 1 ? "them" : "it"}.`
+          : "Runs abacus update: the CLI, and this app if the installer put it here."))
       : update.kind === "checking"
         ? "Checking…"
         : update.kind === "running"
