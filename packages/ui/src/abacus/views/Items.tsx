@@ -14,6 +14,7 @@ import {
   FilePenIcon,
   GitBranchIcon,
   FileTextIcon,
+  GoalIcon,
   LoaderIcon,
   SquareTerminalIcon,
   WrenchIcon,
@@ -38,6 +39,7 @@ type ToolItem = Extract<Item, { status: ToolStatus }>;
 export const ItemView = memo(function ItemView({ item, live }: { item: Item; live: boolean }) {
   switch (item.type) {
     case "userMessage":
+      if (item.goal) return <GoalCarriesOn />;
       if (item.report && item.from) return <SubagentReport text={item.text} from={item.from} />;
       return item.from ? (
         <PeerMessage text={item.text} from={item.from} />
@@ -63,6 +65,20 @@ function Compacted({ label }: { label: string }) {
     <div className="flex items-center gap-3 text-ui-sm text-foreground-subtlest" role="separator">
       <span className="h-px flex-1 bg-border" />
       <span>{label}</span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/** Where an unfinished goal started the next turn by itself. */
+function GoalCarriesOn() {
+  return (
+    <div className="flex items-center gap-3 text-ui-sm text-foreground-subtlest" role="separator">
+      <span className="h-px flex-1 bg-border" />
+      <span className="flex items-center gap-1.5">
+        <GoalIcon className="size-3.5 shrink-0 text-brand" />
+        Goal not done yet, carrying on
+      </span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );

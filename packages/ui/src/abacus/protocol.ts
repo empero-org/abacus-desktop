@@ -57,6 +57,8 @@ export type Item =
       from?: MessageSender | null;
       /** Background subagents' report; `from.title` names them (CLI 0.7.2 and later). */
       report?: boolean;
+      /** An unfinished goal started this turn by itself; nobody wrote it (CLI 0.7.6 and later). */
+      goal?: boolean;
     }
   | { id: string; type: "agentMessage"; text: string }
   | { id: string; type: "reasoning"; text: string }
@@ -318,7 +320,7 @@ export interface Notifications {
   "turn/started": { threadId: string; turnId: string };
   /** A steering message reached the model; `text` is what `turn/start` answered with. */
   "turn/steer/delivered": { threadId: string; text: string };
-  /** `continues`: a steer this turn did not reach starts the next one at once. */
+  /** `continues`: a steer this turn did not reach, or an unfinished goal, starts the next one at once. */
   "turn/completed": {
     threadId: string;
     turnId: string;
