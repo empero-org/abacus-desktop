@@ -80,7 +80,10 @@ export const Markdown = memo(function Markdown({
   return (
     <Streamdown
       className={cn(
-        "abacus-markdown text-ui-base leading-[1.7] [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        // A long URL, path or identifier breaks rather than pushing the whole
+        // conversation sideways in a narrow window. A table scrolls on its
+        // own, so its cells keep their words whole.
+        "abacus-markdown text-ui-base leading-[1.7] [overflow-wrap:anywhere] [&_table]:[overflow-wrap:normal] [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className,
       )}
       // Finished text renders static: streaming mode's repair of unclosed

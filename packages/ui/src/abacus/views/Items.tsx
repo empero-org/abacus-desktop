@@ -171,7 +171,7 @@ function UserMessage({ text, images, files }: { text: string; images: string[]; 
         </div>
       ) : null}
       {text.trim() ? (
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-card px-4 py-2.5 text-ui-base leading-relaxed whitespace-pre-wrap break-words shadow-[inset_0_0_0_1px_var(--color-border)]">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-card px-4 py-2.5 text-ui-base leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] shadow-[inset_0_0_0_1px_var(--color-border)]">
           {text}
         </div>
       ) : null}

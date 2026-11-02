@@ -125,7 +125,7 @@ export function Composer() {
 
   return (
     <div className="shrink-0 px-6 pb-5">
-      <div className="mx-auto flex w-full max-w-(--content-width) flex-col gap-3">
+      <div className="mx-auto flex w-full max-w-(--content-width) min-w-0 flex-col gap-3">
         <Requests />
         <form
           onSubmit={(event) => {
@@ -170,22 +170,24 @@ export function Composer() {
                     ? "Ask abacus anything"
                     : "Ask abacus anything — / for commands, @ for files"
             }
-            className="max-h-[40vh] min-h-[52px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"
+            className="max-h-[40vh] min-h-[52px] w-full min-w-0 resize-none bg-transparent px-4 pt-3.5 pb-1 text-ui-base leading-relaxed outline-none [field-sizing:content] placeholder:text-foreground-subtlest"
             aria-label="Message"
           />
-          <div className="flex items-center gap-1 px-2.5 pt-1 pb-2.5">
-            <AttachButton onFiles={take} />
-            <ModeMenu />
-            <ProfileMenu />
-            <EffortMenu />
-            <div className="flex-1" />
+          <div className="flex min-w-0 items-center gap-1 px-2.5 pt-1 pb-2.5">
+            {/* In a narrow window the pickers give way, never the send button. */}
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+              <AttachButton onFiles={take} />
+              <ModeMenu />
+              <ProfileMenu />
+              <EffortMenu />
+            </div>
             {running && !ready ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     onClick={() => void interrupt()}
-                    className="flex size-8 items-center justify-center rounded-full bg-foreground text-background hover:opacity-85"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background hover:opacity-85"
                     aria-label="Stop"
                   >
                     <SquareIcon className="size-3 fill-current" />
@@ -197,7 +199,7 @@ export function Composer() {
               <button
                 type="submit"
                 disabled={!ready || blocked}
-                className="flex size-8 items-center justify-center rounded-full bg-brand text-primary-foreground transition-opacity hover:opacity-85 disabled:bg-foreground/15 disabled:text-foreground-subtlest"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground transition-opacity hover:opacity-85 disabled:bg-foreground/15 disabled:text-foreground-subtlest"
                 aria-label={running ? "Queue" : "Send"}
               >
                 <ArrowUpIcon className="size-4" strokeWidth={2.5} />
@@ -236,7 +238,7 @@ function Pill({ children, ...props }: ComponentProps<"button">) {
     <button
       type="button"
       {...props}
-      className="flex items-center gap-1 rounded-full px-2.5 py-1 text-ui-sm text-foreground-subtle hover:bg-hover hover:text-foreground aria-expanded:bg-hover aria-expanded:text-foreground disabled:opacity-50"
+      className="flex min-w-0 items-center gap-1 rounded-full px-2.5 py-1 text-ui-sm whitespace-nowrap text-foreground-subtle hover:bg-hover hover:text-foreground aria-expanded:bg-hover aria-expanded:text-foreground disabled:opacity-50"
     >
       {children}
       <ChevronDownIcon className="size-3 opacity-60" />
@@ -254,7 +256,9 @@ function ModeMenu() {
       <DropdownMenuTrigger asChild>
         <Pill title={mode === "yolo" ? "Everything runs without review" : undefined}>
           {mode === "yolo" ? <ShieldAlertIcon className="size-3.5 text-warning" /> : null}
-          <span className={cn(mode === "yolo" && "text-warning")}>{current.label}</span>
+          <span className={cn("min-w-0 truncate", mode === "yolo" && "text-warning")}>
+            {current.label}
+          </span>
         </Pill>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-64">
@@ -289,7 +293,7 @@ function ProfileMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={running}>
         <Pill title={running ? "Change the profile between turns" : model}>
-          <span className="max-w-48 truncate">{profile || model || "Profile"}</span>
+          <span className="max-w-48 min-w-0 truncate">{profile || model || "Profile"}</span>
         </Pill>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="max-h-96 w-80 overflow-y-auto">
@@ -332,7 +336,7 @@ function EffortMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Pill>
-          <span>{effort ? current.label : "Effort"}</span>
+          <span className="min-w-0 truncate">{effort ? current.label : "Effort"}</span>
         </Pill>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-60">

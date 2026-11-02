@@ -57,7 +57,7 @@ export function AttachButton({ onFiles }: { onFiles: (files: File[]) => void }) 
             type="button"
             disabled={!supported}
             onClick={() => input.current?.click()}
-            className="flex size-7 items-center justify-center rounded-full text-foreground-subtle hover:bg-hover hover:text-foreground disabled:opacity-40"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-foreground-subtle hover:bg-hover hover:text-foreground disabled:opacity-40"
             aria-label="Attach files"
           >
             <PaperclipIcon className="size-4" />
