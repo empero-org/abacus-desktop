@@ -87,6 +87,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
           mode: result.mode,
           reasoningEffort: result.reasoningEffort,
           contextWindow: result.contextWindow ?? thread.contextWindow,
+          compaction: result.compaction ?? thread.compaction,
         },
       });
     };

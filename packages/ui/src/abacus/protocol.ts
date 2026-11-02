@@ -96,6 +96,8 @@ export interface ThreadSnapshot {
   contextWindow: number | null;
   /** How full the context is (CLI 0.7.1 and later). */
   contextTokens?: number;
+  /** Where compaction steps in (CLI 0.7.7 and later). */
+  compaction?: CompactionMarks;
   tokensUsed: number;
   usage: TokenUsage;
   /** The persistent goal `/goal` set, or null (CLI 0.7.5 and later). */
@@ -147,12 +149,24 @@ export interface ChangedFile {
 }
 
 /** What the session runs, as `config/value/write` and the profile methods answer. */
+/**
+ * Where compaction steps in, in tokens of context: past `trim` old tool output
+ * is trimmed, past `idle` a thread left alone is summarised (null when that is
+ * off), and past `summary` the history is summarised before the next request.
+ */
+export interface CompactionMarks {
+  trim: number;
+  idle: number | null;
+  summary: number;
+}
+
 export interface ConfigValueResult {
   profile: string;
   model: string;
   mode: AgentMode;
   reasoningEffort: ReasoningEffort | null;
   contextWindow?: number | null;
+  compaction?: CompactionMarks;
   needsSetup?: boolean;
   idleCompaction?: boolean;
   maxSteps?: number;
@@ -315,6 +329,7 @@ export interface Notifications {
     tokensUsed: number;
     contextTokens?: number;
     contextWindow: number | null;
+    compaction?: CompactionMarks;
     usage: TokenUsage;
   };
   "turn/started": { threadId: string; turnId: string };

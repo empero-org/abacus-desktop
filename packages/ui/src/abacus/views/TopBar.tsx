@@ -7,7 +7,6 @@ import { BotIcon, FileDiffIcon, GlobeIcon, PanelLeftIcon, SquareTerminalIcon } f
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import { useAbacus } from "../context.js";
-import { ContextMeter } from "./ContextMeter.js";
 
 export function TopBar({
   platform,
@@ -72,15 +71,6 @@ export function TopBar({
       <div className="min-w-0 flex-1">
         {thread && ready ? <ThreadTitle key={thread.threadId} /> : null}
       </div>
-
-      {thread && ready ? (
-        <ContextMeter
-          contextTokens={thread.contextTokens}
-          contextWindow={thread.contextWindow}
-          tokensUsed={thread.tokensUsed}
-          usage={thread.usage}
-        />
-      ) : null}
 
       {onToggleTasks ? (
         <Tooltip>

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { compactNumber, compactionLabel, elapsed, thoughtTitle, tokenCount } from "./format.js";
+import {
+  compactNumber,
+  compactionLabel,
+  compactionTicks,
+  elapsed,
+  thoughtTitle,
+  tokenCount,
+} from "./format.js";
 import { toolActivity } from "./tools.js";
 
 describe("task figures", () => {
@@ -60,5 +67,22 @@ describe("thoughtTitle", () => {
     );
     expect(thoughtTitle("Version 0.7.5 ships it")).toBe("Version 0.7.5 ships it");
     expect(thoughtTitle("   ")).toBe("");
+  });
+});
+
+describe("the context bar", () => {
+  it("ticks where compaction steps in, in order along the window", () => {
+    const ticks = compactionTicks({ trim: 60_000, idle: 100_000, summary: 160_000 }, 200_000);
+    expect(ticks.map((tick) => [tick.kind, tick.position])).toEqual([
+      ["trim", 30],
+      ["idle", 50],
+      ["summary", 80],
+    ]);
+  });
+
+  it("leaves out what is off or falls outside the window, and draws none for an old CLI", () => {
+    const ticks = compactionTicks({ trim: 60_000, idle: null, summary: 400_000 }, 200_000);
+    expect(ticks.map((tick) => tick.kind)).toEqual(["trim"]);
+    expect(compactionTicks(null, 200_000)).toEqual([]);
   });
 });

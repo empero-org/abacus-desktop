@@ -8,6 +8,7 @@
 import type {
   AgentMode,
   ChangedFile,
+  CompactionMarks,
   Goal,
   Item,
   Notifications,
@@ -30,6 +31,8 @@ export interface ThreadView {
   contextWindow: number | null;
   /** How full the context is; null when the CLI does not say. */
   contextTokens: number | null;
+  /** Where compaction steps in; null when the CLI does not say. */
+  compaction: CompactionMarks | null;
   /** Every token the session has spent, which is not the context. */
   tokensUsed: number;
   usage: TokenUsage | null;
@@ -56,6 +59,7 @@ export function threadFromSnapshot(snapshot: ThreadSnapshot): ThreadView {
     reasoningEffort: snapshot.reasoningEffort,
     contextWindow: snapshot.contextWindow,
     contextTokens: snapshot.contextTokens ?? null,
+    compaction: snapshot.compaction ?? null,
     tokensUsed: snapshot.tokensUsed,
     usage: snapshot.usage ?? null,
     goal: snapshot.goal ?? null,
@@ -147,6 +151,7 @@ export function applyNotification(thread: ThreadView, method: string, params: un
         mode: update.mode,
         reasoningEffort: update.reasoningEffort,
         contextWindow: update.contextWindow ?? thread.contextWindow,
+        compaction: update.compaction ?? thread.compaction,
       };
     }
     case "thread/tokenUsage/updated": {
@@ -156,6 +161,7 @@ export function applyNotification(thread: ThreadView, method: string, params: un
         tokensUsed: update.tokensUsed,
         contextTokens: update.contextTokens ?? null,
         contextWindow: update.contextWindow,
+        compaction: update.compaction ?? thread.compaction,
         usage: update.usage,
       };
     }

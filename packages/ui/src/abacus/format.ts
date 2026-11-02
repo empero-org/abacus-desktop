@@ -1,6 +1,6 @@
 // Small formatting helpers shared by the views.
 
-import type { Item } from "./protocol.js";
+import type { CompactionMarks, Item } from "./protocol.js";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -54,6 +54,35 @@ export function compactionLabel(item: Extract<Item, { type: "contextCompaction" 
 }
 
 /** Share of the context window used, 0-100, or null when the window is unknown. */
+/** A compaction point on the context bar: where it falls, and what happens there. */
+export interface CompactionTick {
+  kind: "trim" | "idle" | "summary";
+  /** Tokens of context. */
+  at: number;
+  /** Percent of the window, for placing it. */
+  position: number;
+  label: string;
+}
+
+/** The compaction points that fall inside the window, in order along the bar. */
+export function compactionTicks(
+  marks: CompactionMarks | null,
+  contextWindow: number,
+): CompactionTick[] {
+  if (!marks || contextWindow <= 0) return [];
+  const ticks: Omit<CompactionTick, "position">[] = [
+    { kind: "trim", at: marks.trim, label: "Old tool output trimmed" },
+    ...(marks.idle === null
+      ? []
+      : [{ kind: "idle" as const, at: marks.idle, label: "Summarised when left idle" }]),
+    { kind: "summary", at: marks.summary, label: "Summarised before the next request" },
+  ];
+  return ticks
+    .filter((tick) => tick.at > 0 && tick.at < contextWindow)
+    .map((tick) => ({ ...tick, position: (tick.at / contextWindow) * 100 }))
+    .sort((left, right) => left.at - right.at);
+}
+
 export function contextShare(contextTokens: number, contextWindow: number | null): number | null {
   if (!contextWindow || contextWindow <= 0) return null;
   return Math.min(100, Math.round((contextTokens / contextWindow) * 100));

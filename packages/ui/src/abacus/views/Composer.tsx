@@ -40,6 +40,7 @@ import type { Attachment } from "../attachments.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { AttachButton, AttachmentStrip } from "./Attachments.js";
 import { CompletionList, useCompletion } from "./Completion.js";
+import { ContextBar } from "./ContextBar.js";
 import { GoalBar } from "./GoalBar.js";
 import { PlanBar } from "./PlanBar.js";
 import { QueueBar } from "./QueueBar.js";
@@ -127,6 +128,13 @@ export function Composer() {
     <div className="shrink-0 px-6 pb-5">
       <div className="mx-auto flex w-full max-w-(--content-width) min-w-0 flex-col gap-3">
         <Requests />
+        <ContextBar
+          contextTokens={thread.contextTokens}
+          contextWindow={thread.contextWindow}
+          compaction={thread.compaction}
+          tokensUsed={thread.tokensUsed}
+          usage={thread.usage}
+        />
         <form
           onSubmit={(event) => {
             event.preventDefault();
