@@ -28,6 +28,7 @@ import { SidebarPins } from "./pins.js";
 import { RecentWorkspaces } from "./recent.js";
 import { Terminals } from "./terminal.js";
 import { checkUpdates } from "./updates.js";
+import { zoomWithKeys } from "./zoom.js";
 import { createWindow, isExternalUrl, rendererPaths } from "./window.js";
 
 const OUT_DIR = join(__dirname, "..");
@@ -136,6 +137,7 @@ function closeTerminals(owner: number): void {
 
 function openWindow(workspace?: string): BrowserWindow {
   const window = createWindow({ ...rendererPaths(OUT_DIR), devServerUrl: DEV_SERVER_URL });
+  zoomWithKeys(window, join(app.getPath("userData"), "zoom.json"));
   const id = window.webContents.id;
   if (workspace) {
     // The renderer asks for its launch workspace once it is ready to listen.
