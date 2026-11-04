@@ -146,6 +146,26 @@ export interface InitializeResult {
   thread: ThreadSnapshot;
 }
 
+/** What fills the context, by kind (`thread/context/read`, CLI 0.7.7 and later). */
+export interface ContextUse {
+  /** The meter's figure; the parts add up to it. */
+  used: number;
+  window: number | null;
+  /** Where compaction summarises: past it, the next request is summarised first. */
+  compactsAt: number;
+  /** Nothing reported by the provider yet: the figures are estimates from the text. */
+  estimated: boolean;
+  parts: ContextPart[];
+}
+
+export interface ContextPart {
+  key: string;
+  label: string;
+  tokens: number;
+  /** How many tools of this kind are offered. */
+  count?: number;
+}
+
 /** What a turn did to one file. */
 export interface FileEdit {
   path: string;

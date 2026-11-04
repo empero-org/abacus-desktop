@@ -1,12 +1,15 @@
 // The context bar above the composer: how full the model's context window
 // is, as a thin line from empty to the window's size, with a tick where
-// compaction steps in. Hovering it shows the figures behind it and what the
-// session has spent.
+// compaction steps in. Hovering it shows what fills the context, kind by
+// kind, where compaction steps in, and what the session has spent.
 
+import { useState } from "react";
 import { cn } from "@/components/lib/utils.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card.js";
+import { useAbacus } from "../context.js";
+import { contextRows, shareLabel, type ContextRow } from "../contextUse.js";
 import { compactNumber, compactionTicks, contextShare } from "../format.js";
-import type { CompactionMarks, TokenUsage } from "../protocol.js";
+import type { CompactionMarks, ContextUse, TokenUsage } from "../protocol.js";
 import { usageRows } from "../usage.js";
 
 export function ContextBar({
@@ -24,6 +27,14 @@ export function ContextBar({
   tokensUsed: number;
   usage: TokenUsage | null;
 }) {
+  const asleep = useAbacus((state) => state.asleep);
+  // What fills it, asked for each time the card opens; a sleeping thread is
+  // not woken for it, and an abacus too old to say leaves it out.
+  const [use, setUse] = useState<ContextUse | null>(null);
+  const load = (open: boolean) => {
+    if (!open || asleep || !window.abacus) return;
+    window.abacus.request<ContextUse>("thread/context/read").then(setUse, () => setUse(null));
+  };
   const share = contextTokens === null ? null : contextShare(contextTokens, contextWindow);
   if (share === null || contextTokens === null || !contextWindow) return null;
   const fill = Math.min(100, (contextTokens / contextWindow) * 100);
@@ -31,9 +42,10 @@ export function ContextBar({
   // Past the summary point the next request is summarised first.
   const due = compaction !== null && contextTokens >= compaction.summary;
 
+  const rows = use ? contextRows(use) : null;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <HoverCard openDelay={150} closeDelay={100} onOpenChange={load}>
+      <HoverCardTrigger asChild>
         <div
           className="group relative h-[19px] w-full cursor-default"
           tabIndex={0}
@@ -75,14 +87,18 @@ export function ContextBar({
             />
           ))}
         </div>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="min-w-60 px-3 py-2.5">
-        <div className="flex flex-col gap-2 text-ui-sm">
-          <div className="flex flex-col gap-0.5">
+      </HoverCardTrigger>
+      <HoverCardContent side="top" className="w-[22rem] p-3">
+        <div className="flex flex-col gap-3 text-ui-sm">
+          <div className="flex flex-col gap-1.5">
             <span className="font-medium">Context</span>
-            <span className="opacity-80">
-              {`${compactNumber(contextTokens)} of ${compactNumber(contextWindow)} · ${share}% full`}
-            </span>
+            <div className="flex items-baseline justify-between gap-3">
+              <span>{`${share}% used`}</span>
+              <span className="font-mono opacity-80 tabular-nums">
+                {`${compactNumber(contextTokens)} / ${compactNumber(contextWindow)}`}
+              </span>
+            </div>
+            {rows ? <Breakdown rows={rows} /> : null}
           </div>
           {ticks.length > 0 ? (
             <div className="flex flex-col gap-0.5">
@@ -116,8 +132,48 @@ export function ContextBar({
               ))}
             </dl>
           </div>
+          {use?.estimated ? (
+            <p className="opacity-70">
+              Estimated from the text; the provider&apos;s own count replaces it after the next
+              reply.
+            </p>
+          ) : null}
         </div>
-      </TooltipContent>
-    </Tooltip>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+/** The context kind by kind: one bar of them all, then each with its share. */
+function Breakdown({ rows }: { rows: ContextRow[] }) {
+  const filled = rows.filter((row) => row.key !== "free" && row.key !== "buffer");
+  const buffer = rows.find((row) => row.key === "buffer");
+  return (
+    <>
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
+        {filled.map((row) => (
+          <span key={row.key} className={row.color} style={{ width: `${row.share}%` }} />
+        ))}
+        <span className="flex-1" />
+        {buffer ? <span className={buffer.color} style={{ width: `${buffer.share}%` }} /> : null}
+      </div>
+      <dl className="mt-1 grid grid-cols-[auto_1fr_auto_auto] items-center gap-x-2.5 gap-y-1">
+        {rows.map((row) => (
+          <div key={row.key} className="contents">
+            <span className={cn("size-2.5 rounded-[3px]", row.color)} />
+            <dt className="truncate">
+              {row.label}
+              {row.count !== undefined ? (
+                <span className="opacity-60">{` · ${row.count}`}</span>
+              ) : null}
+            </dt>
+            <dd className="text-right font-mono tabular-nums">{compactNumber(row.tokens)}</dd>
+            <dd className="w-12 text-right font-mono opacity-70 tabular-nums">
+              {shareLabel(row.share)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </>
   );
 }
