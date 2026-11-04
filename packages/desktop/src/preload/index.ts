@@ -66,10 +66,10 @@ const bridge: AbacusBridge = {
       ipcRenderer.on("browser:state", handler);
       return () => ipcRenderer.removeListener("browser:state", handler);
     },
-    onAgent: (listener) => {
+    onShow: (listener) => {
       const handler = () => listener();
-      ipcRenderer.on("browser:agent", handler);
-      return () => ipcRenderer.removeListener("browser:agent", handler);
+      ipcRenderer.on("browser:show", handler);
+      return () => ipcRenderer.removeListener("browser:show", handler);
     },
   },
 
@@ -91,6 +91,14 @@ const bridge: AbacusBridge = {
       ipcRenderer.on("pins:changed", handler);
       return () => ipcRenderer.removeListener("pins:changed", handler);
     },
+  },
+
+  files: {
+    info: (paths) => ipcRenderer.invoke("files:info", paths),
+    text: (path) => ipcRenderer.invoke("files:text", path),
+    open: (path) => ipcRenderer.invoke("files:open", path),
+    browse: (path) => ipcRenderer.invoke("files:browse", path),
+    url: (path) => `abacus-file://local/${encodeURIComponent(path)}`,
   },
 
   // Electron no longer puts the path on File; only the preload can ask for it.

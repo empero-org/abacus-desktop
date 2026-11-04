@@ -71,6 +71,11 @@ export type Item =
   | { id: string; type: "contextCompaction"; messages: number; tokens: number; summarised: boolean }
   /** Not from the server's items: what one of the terminal's commands (`/memory`, `/usage`, …) said. */
   | { id: string; type: "commandOutput"; command: string; text: string }
+  /**
+   * What a turn's file tools changed, where it ended (CLI 0.7.7 and later).
+   * `checkpoint` reads the turn's own diff and undoes it.
+   */
+  | { id: string; type: "fileEdits"; checkpoint: string; files: FileEdit[]; undone?: boolean }
   | {
       id: string;
       type: ToolItemType;
@@ -139,6 +144,16 @@ export interface InitializeResult {
   /** Characters of tool output kept before truncation (capability `agentLimits`). */
   toolOutputLimit?: number;
   thread: ThreadSnapshot;
+}
+
+/** What a turn did to one file. */
+export interface FileEdit {
+  path: string;
+  status: "added" | "modified" | "deleted";
+  added: number;
+  removed: number;
+  /** Not text, or too large to compare: no line counts. */
+  binary?: boolean;
 }
 
 export interface ChangedFile {
@@ -344,6 +359,8 @@ export interface Notifications {
     continues?: boolean;
   };
   "turn/diff/updated": { threadId: string; turnId: string; files: ChangedFile[] };
+  /** A turn's edits were put back (`turn/undo`). */
+  "turn/undone": { threadId: string; checkpoint: string; files: string[] };
   /** The thread was summarised while nobody was using it, saving about `savedTokens` a request. */
   "thread/compacted": { threadId: string; reason: "idle"; savedTokens: number };
   "item/started": { threadId: string; turnId: string; startedAtMs: number; item: Item };

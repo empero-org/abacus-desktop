@@ -6,17 +6,38 @@ import type { Item } from "./protocol.js";
 
 export type Entry = { kind: "item"; item: Item } | { kind: "steps"; id: string; items: Item[] };
 
-/** The agent thinking or calling a tool; a message, or a line the window adds, is not one. */
+/**
+ * The agent thinking or calling a tool. A message, a line the window adds,
+ * what a turn edited, and the files the agent showed are not: they stay in view.
+ */
 function isStep(item: Item): boolean {
   switch (item.type) {
     case "userMessage":
     case "agentMessage":
     case "contextCompaction":
     case "commandOutput":
+    case "fileEdits":
       return false;
     default:
-      return true;
+      return !isPresentedFiles(item);
   }
+}
+
+/** A `present_files` call that showed files: drawn as their cards. */
+export function isPresentedFiles(item: Item): boolean {
+  return (
+    "name" in item &&
+    item.name === "present_files" &&
+    item.status === "completed" &&
+    presentedPaths(item.output ?? "").length > 0
+  );
+}
+
+/** The files a `present_files` call showed, from its answer: one `- /path` line each. */
+export function presentedPaths(output: string): string[] {
+  const [first, ...rest] = output.split("\n");
+  if (first?.trim() !== "Shown to the person as file cards:") return [];
+  return rest.filter((line) => line.startsWith("- ")).map((line) => line.slice(2).trim());
 }
 
 /**

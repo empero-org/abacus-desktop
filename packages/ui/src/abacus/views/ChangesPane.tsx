@@ -1,5 +1,6 @@
 // The working tree's changes, as git reports them: the file list the last turn
 // announced, and the diff read fresh whenever the pane opens or a turn ends.
+// Or one turn's own edits, as it made them, from "View changes" under them.
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ChevronRightIcon, FolderOpenIcon, RefreshCwIcon, XIcon } from "lucide-react";
@@ -12,23 +13,24 @@ export function ChangesPane({ onClose }: { onClose: () => void }) {
   const workspace = useAbacus((state) => state.workspace?.workspace);
   const turnId = useAbacus((state) => state.thread?.turnId ?? null);
   const changedCount = useAbacus((state) => state.thread?.changedFiles.length ?? 0);
+  const checkpoint = useAbacus((state) => state.turnChanges);
+  const readDiff = useAbacus((state) => state.readDiff);
+  const showChanges = useAbacus((state) => state.showChanges);
   const [files, setFiles] = useState<DiffFile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!window.abacus) return;
     setLoading(true);
     try {
-      const { diff } = await window.abacus.request<{ diff: string }>("thread/diff/read");
-      setFiles(parseUnifiedDiff(diff));
+      setFiles(parseUnifiedDiff(await readDiff(checkpoint)));
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [readDiff, checkpoint]);
 
   // Reload when the pane opens, when a turn ends, and when the file list moves.
   useEffect(() => {
@@ -36,11 +38,22 @@ export function ChangesPane({ onClose }: { onClose: () => void }) {
   }, [load, turnId, changedCount]);
 
   return (
-    <aside className="flex w-[min(44vw,560px)] shrink-0 flex-col border-l bg-panel">
+    <aside className="flex w-[min(44vw,560px)] min-w-72 shrink flex-col border-l bg-panel">
       <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <span className="abacus-label">Changes</span>
+        <span className="abacus-label min-w-0 truncate">
+          {checkpoint ? "Changes in that turn" : "Changes"}
+        </span>
         {files ? <span className="text-ui-sm text-foreground-subtlest">{files.length}</span> : null}
         <div className="flex-1" />
+        {checkpoint ? (
+          <button
+            type="button"
+            onClick={() => showChanges(null)}
+            className="shrink-0 rounded-md px-1.5 py-1 text-ui-sm whitespace-nowrap text-foreground-subtle hover:bg-hover hover:text-foreground"
+          >
+            All changes
+          </button>
+        ) : null}
         <IconButton label="Refresh" onClick={() => void load()}>
           <RefreshCwIcon className={cn("size-3.5", loading && "animate-spin")} />
         </IconButton>
@@ -61,7 +74,9 @@ export function ChangesPane({ onClose }: { onClose: () => void }) {
           <p className="p-4 text-ui-sm text-destructive">{error}</p>
         ) : files && files.length === 0 ? (
           <p className="p-4 text-ui-sm text-foreground-subtlest">
-            No unstaged changes. New files git does not track yet are not shown here.
+            {checkpoint
+              ? "That turn changed nothing that can be shown."
+              : "No unstaged changes. New files git does not track yet are not shown here."}
           </p>
         ) : (
           files?.map((file) => <FileDiff key={file.path} file={file} />)

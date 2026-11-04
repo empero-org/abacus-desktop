@@ -32,6 +32,9 @@ export function Workspace() {
   const effort = useAbacus((state) => state.thread?.reasoningEffort ?? null);
   const setReasoningEffort = useAbacus((state) => state.setReasoningEffort);
   const changedFiles = useAbacus((state) => state.thread?.changedFiles.length ?? 0);
+  const turnChanges = useAbacus((state) => state.turnChanges);
+  const showChanges = useAbacus((state) => state.showChanges);
+  const threadId = useAbacus((state) => state.thread?.threadId ?? null);
   const workspace = useAbacus((state) => state.workspace?.workspace ?? null);
   const hasTasks = useAbacus(
     (state) => Boolean(state.capabilities.tasks) && state.tasks.length > 0,
@@ -95,8 +98,19 @@ export function Workspace() {
 
   // A turn that changed files offers its changes without forcing the pane open.
   useEffect(() => {
-    if (changedFiles === 0) setChangesOpen(false);
-  }, [changedFiles]);
+    if (changedFiles === 0 && !turnChanges) setChangesOpen(false);
+  }, [changedFiles, turnChanges]);
+
+  // "View changes" under a turn's edits opens the pane on them; another
+  // thread's turns are not this one's.
+  useEffect(() => {
+    if (turnChanges) setChangesOpen(true);
+  }, [turnChanges]);
+  useEffect(() => showChanges(null), [threadId, showChanges]);
+  const closeChanges = () => {
+    setChangesOpen(false);
+    showChanges(null);
+  };
 
   return (
     <div className="flex h-full">
@@ -115,7 +129,7 @@ export function Workspace() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           changesOpen={changesOpen}
-          onToggleChanges={() => setChangesOpen((open) => !open)}
+          onToggleChanges={() => (changesOpen ? closeChanges() : setChangesOpen(true))}
           terminalOpen={terminalOpen}
           onToggleTerminal={terminalAvailable ? toggleTerminal : undefined}
           tasksOpen={tasks.open}
@@ -132,7 +146,8 @@ export function Workspace() {
           />
         ) : null}
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">
+          {/* The conversation keeps room to read; the panes beside it give way. */}
+          <div className="flex min-w-[min(360px,100%)] flex-1 flex-col">
             <main className={cn("flex min-h-0 min-w-0 flex-1 flex-col")}>
               {view === "settings" ? (
                 <Settings />
@@ -160,7 +175,7 @@ export function Workspace() {
             ) : null}
           </div>
           {changesOpen && phase === "ready" && view === "chat" ? (
-            <ChangesPane onClose={() => setChangesOpen(false)} />
+            <ChangesPane onClose={closeChanges} />
           ) : null}
           {browser.open && phase === "ready" && view === "chat" ? (
             <BrowserPane

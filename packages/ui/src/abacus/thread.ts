@@ -167,6 +167,15 @@ export function applyNotification(thread: ThreadView, method: string, params: un
     }
     case "turn/diff/updated":
       return { ...thread, changedFiles: (params as Notifications["turn/diff/updated"]).files };
+    case "turn/undone": {
+      const { checkpoint } = params as Notifications["turn/undone"];
+      const items = thread.items.map((item) =>
+        item.type === "fileEdits" && item.checkpoint === checkpoint
+          ? { ...item, undone: true }
+          : item,
+      );
+      return { ...thread, items };
+    }
     // A line in the transcript rather than a notice: it happens while the
     // person is away, and a notice would be gone before they are back.
     case "thread/compacted": {

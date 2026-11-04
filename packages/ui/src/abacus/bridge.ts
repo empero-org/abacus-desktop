@@ -89,6 +89,28 @@ export interface PinsBridge {
   onChange(listener: (pins: Pins) => void): () => void;
 }
 
+/** A file a card in the transcript shows (`present_files`). */
+export interface ShownFile {
+  path: string;
+  name: string;
+  /** Bytes; null when the file is gone. */
+  size: number | null;
+}
+
+/** The files cards show: what they are, their text, and opening them. */
+export interface FilesBridge {
+  /** What each file is; asking lets the window read it. */
+  info(paths: string[]): Promise<ShownFile[]>;
+  /** The start of a text file, for a preview; null for one that is not text. */
+  text(path: string): Promise<{ text: string; truncated: boolean } | null>;
+  /** Open in the app the system opens it with. */
+  open(path: string): Promise<void>;
+  /** Open in the window's browser. */
+  browse(path: string): Promise<void>;
+  /** Where the window loads it from (images, audio, video). */
+  url(path: string): string;
+}
+
 /**
  * A project in the sidebar: a folder with abacus sessions on this machine
  * (synced from another device included), or one opened here that has none yet.
@@ -138,8 +160,8 @@ export interface BrowserBridge {
   /** Where the page goes, in window coordinates; null hides it. */
   setBounds(bounds: { x: number; y: number; width: number; height: number } | null): void;
   onState(listener: (state: BrowserState) => void): () => void;
-  /** The agent started using the browser. */
-  onAgent(listener: () => void): () => void;
+  /** Something to see opened in the browser: the agent started using it, or a file card opened a file there. */
+  onShow(listener: () => void): () => void;
   /** Move the browser into a window of its own. */
   popOut(): Promise<void>;
   /** Bring a popped-out browser back into the app's pane (closing its window). */
@@ -227,6 +249,7 @@ export interface AbacusBridge {
   browser: BrowserBridge;
   groups: GroupsBridge;
   pins: PinsBridge;
+  files: FilesBridge;
 
   /** Where a dropped or picked file lives on disk; null for one with no path (pasted from a browser). */
   pathForFile(file: File): string | null;

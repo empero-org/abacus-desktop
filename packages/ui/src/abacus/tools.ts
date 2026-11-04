@@ -46,6 +46,7 @@ const BUILT_IN: Record<string, Verbs> = {
   browser_scroll: ["Scrolling", "Scrolled", "scroll"],
   browser_back: ["Going back", "Went back", "go back"],
   browser_screenshot: ["Taking a screenshot", "Took a screenshot", "take a screenshot"],
+  present_files: ["Showing", "Showed", "show"],
 };
 
 const BY_TYPE: Record<ToolItemType, Verbs> = {

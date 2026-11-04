@@ -107,6 +107,8 @@ export interface AbacusState {
   commands: CommandEntry[];
   /** Background workers of this session, newest first. */
   tasks: BackgroundTask[];
+  /** The turn whose own edits the changes pane shows, by checkpoint; null for the working tree's. */
+  turnChanges: string | null;
 
   boot(): Promise<void>;
   refreshCli(): Promise<void>;
@@ -128,6 +130,12 @@ export interface AbacusState {
   checkUpdates(): Promise<void>;
   /** Send a report where the terminal's /feedback sends it; why it failed, or null when it went. */
   sendReport(report: Report): Promise<string | null>;
+  /** Open the changes pane on one turn's own edits, by checkpoint; null for the working tree's. */
+  showChanges(checkpoint: string | null): void;
+  /** One turn's diff, by checkpoint, or the working tree's. */
+  readDiff(checkpoint: string | null): Promise<string>;
+  /** Put back what a turn edited; whether it was. */
+  undoEdits(checkpoint: string): Promise<boolean>;
 
   newThread(): Promise<void>;
   openThread(threadId: string): Promise<void>;

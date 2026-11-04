@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Item } from "./protocol.js";
-import { groupSteps, stepSummary } from "./steps.js";
+import { groupSteps, presentedPaths, stepSummary } from "./steps.js";
 
 const user = (id: string): Item => ({ id, type: "userMessage", text: "hi" });
 const said = (id: string, text = "done"): Item => ({ id, type: "agentMessage", text });
@@ -47,6 +47,25 @@ describe("groupSteps", () => {
     const later = groupSteps([user("u1"), thought("r1"), ran("c1"), ran("c2")]);
     expect(first[1]).toMatchObject({ kind: "steps", id: "r1" });
     expect(later[1]).toMatchObject({ kind: "steps", id: "r1" });
+  });
+
+  it("keeps what a turn edited, and the files the agent showed, out of the fold", () => {
+    const shown: Item = {
+      id: "p1",
+      type: "functionCall",
+      name: "present_files",
+      status: "completed",
+      output: "Shown to the person as file cards:\n- /work/report.pdf",
+    };
+    const failed: Item = { ...shown, id: "p2", output: "Error: Could not show x: no such file" };
+    const edits: Item = { id: "f1", type: "fileEdits", checkpoint: "c1", files: [] };
+    expect(shape([ran("c1"), shown, ran("c2"), failed, ran("c3"), edits])).toEqual([
+      "c1",
+      "p1",
+      "[c2,p2,c3]",
+      "f1",
+    ]);
+    expect(presentedPaths(shown.output ?? "")).toEqual(["/work/report.pdf"]);
   });
 
   it("does not let a reply with no words yet split a run", () => {

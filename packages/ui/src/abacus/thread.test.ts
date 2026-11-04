@@ -171,6 +171,24 @@ describe("applyNotification", () => {
     expect(done.lastTurnStatus).toBe("completed");
   });
 
+  it("marks a turn's edits undone, and only that turn's", () => {
+    const edits = (id: string, checkpoint: string) => ({
+      id,
+      type: "fileEdits",
+      checkpoint,
+      files: [{ path: "a.rs", status: "modified", added: 1, removed: 0 }],
+    });
+    const thread = run(
+      ["item/completed", { threadId: "t1", turnId: "turn_1", item: edits("i1", "c1") }],
+      ["item/completed", { threadId: "t1", turnId: "turn_2", item: edits("i2", "c2") }],
+      ["turn/undone", { threadId: "t1", checkpoint: "c1", files: ["a.rs"] }],
+    );
+    expect(thread.items.map((item) => item.type === "fileEdits" && Boolean(item.undone))).toEqual([
+      true,
+      false,
+    ]);
+  });
+
   it("records usage, mode, and the turn's changed files", () => {
     const usage = {
       input: 10,

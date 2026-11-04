@@ -1,6 +1,7 @@
 // One transcript item: the person's message (or another session's, or a
 // subagent's), the agent's answer, its reasoning, or a tool call. Tool calls
-// stay one quiet line until opened.
+// stay one quiet line until opened; the files the agent showed, and what a
+// turn edited, are cards.
 
 import { memo, useEffect, useState } from "react";
 import {
@@ -31,8 +32,11 @@ import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
 import type { Item, MessageSender, ToolItemType, ToolStatus } from "../protocol.js";
 import { compactionLabel, thoughtTitle } from "../format.js";
+import { isPresentedFiles } from "../steps.js";
 import { standsAlone, toolSubject, toolVerb } from "../tools.js";
+import { PresentedFiles } from "./FileCards.js";
 import { Markdown } from "./Markdown.js";
+import { TurnEdits } from "./TurnEdits.js";
 
 type ToolItem = Extract<Item, { status: ToolStatus }>;
 
@@ -54,8 +58,14 @@ export const ItemView = memo(function ItemView({ item, live }: { item: Item; liv
       return <Compacted label={compactionLabel(item)} />;
     case "commandOutput":
       return <CommandOutput command={item.command} text={item.text} />;
+    case "fileEdits":
+      return <TurnEdits item={item} />;
     default:
-      return <ToolCall item={item} />;
+      return isPresentedFiles(item) ? (
+        <PresentedFiles output={item.output ?? ""} />
+      ) : (
+        <ToolCall item={item} />
+      );
   }
 });
 

@@ -110,8 +110,13 @@ export function BrowserPane({
       );
     };
     place();
+    // The page moves without resizing when a pane beside it opens or closes,
+    // which resizes the panes beside it: watch them too.
     const observer = new ResizeObserver(place);
     observer.observe(element);
+    for (const pane of element.closest("aside")?.parentElement?.children ?? []) {
+      observer.observe(pane);
+    }
     window.addEventListener("resize", place);
     return () => {
       observer.disconnect();
@@ -184,11 +189,11 @@ export function BrowserPane({
   return (
     <aside
       className={cn(
-        "relative flex shrink-0 flex-col bg-panel",
+        "relative flex flex-col bg-panel",
         popped
           ? "min-w-0 flex-1"
           : expanded
-            ? "w-[min(78%,calc(100%-360px))] border-l"
+            ? "w-[min(78%,calc(100%-360px))] shrink-0 border-l"
             : "max-w-[calc(100%-360px)] min-w-80 border-l",
       )}
       style={popped || expanded ? undefined : { width: width ?? DEFAULT_WIDTH }}
@@ -401,12 +406,15 @@ function PaneButton({
   );
 }
 
-/** Whether the browser pane is open, expanded, and how wide; it opens when the agent starts browsing. */
+/**
+ * Whether the browser pane is open, expanded, and how wide. It opens when the
+ * agent starts browsing, or a file card opens a file there.
+ */
 export function useBrowserPane() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [width, setWidth] = useState(savedWidth);
-  useEffect(() => window.abacus?.browser.onAgent(() => setOpen(true)), []);
+  useEffect(() => window.abacus?.browser.onShow(() => setOpen(true)), []);
   useEffect(() => {
     try {
       localStorage.setItem(WIDTH_KEY, String(width));

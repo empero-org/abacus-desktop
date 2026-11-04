@@ -7,6 +7,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  session as electronSession,
   shell,
   webContents,
   type IpcMainEvent,
@@ -24,6 +25,13 @@ import { listSessions, mergeProjects } from "./projects.js";
 import type { Browser } from "./browser.js";
 import { BrowserWindows } from "./browserWindows.js";
 import { BROWSER_TOOLS, isBrowserTool, runBrowserTool } from "./browserTools.js";
+import {
+  answerFileRequests,
+  PRESENT_TOOL,
+  presentFiles,
+  registerFileScheme,
+  serveFiles,
+} from "./files.js";
 import { SessionGroups } from "./groups.js";
 import { SidebarPins } from "./pins.js";
 import { RecentWorkspaces } from "./recent.js";
@@ -37,17 +45,20 @@ const DEV_SERVER_URL = process.env.ABACUS_DESKTOP_DEV_URL;
 
 const sessions = new Sessions({
   frame(contents, id, server, frame) {
-    // The agent driving the browser: answered here, where the browser is.
+    // The agent driving the browser, or showing the person files: answered
+    // here, where the browser is.
     if (frame.kind === "request" && frame.method === "tool/call") {
       const { name, arguments: args } = (frame.params ?? {}) as {
         name?: string;
         arguments?: Record<string, unknown>;
       };
-      if (isBrowserTool(name)) {
-        if (!contents.isDestroyed()) contents.send("browser:agent");
-        void runBrowserTool(browserFor(contents), name!, args ?? {}).then((answer) => {
-          if (server.running) server.respond(frame.id, answer);
-        });
+      const browsing = isBrowserTool(name);
+      if (browsing && !contents.isDestroyed()) contents.send("browser:show");
+      const answer = browsing
+        ? runBrowserTool(browserFor(contents), name!, args ?? {})
+        : name === PRESENT_TOOL.name && presentFiles(server.workspace, args ?? {});
+      if (answer) {
+        void answer.then((answer) => server.running && server.respond(frame.id, answer));
         return;
       }
     }
@@ -269,7 +280,9 @@ function registerIpc(): void {
       method === "initialize" &&
       (result as { capabilities?: Record<string, boolean> })?.capabilities?.clientTools
     ) {
-      await session.request("tools/register", { tools: BROWSER_TOOLS }).catch(() => {});
+      await session
+        .request("tools/register", { tools: [...BROWSER_TOOLS, PRESENT_TOOL] })
+        .catch(() => {});
     }
     return result;
   });
@@ -402,6 +415,7 @@ function registerIpc(): void {
   ipcMain.handle("shell:openExternal", (_event, url: unknown) => {
     if (typeof url === "string" && isExternalUrl(url)) return shell.openExternal(url);
   });
+  answerFileRequests(browserFor);
   ipcMain.handle("shell:reveal", async (_event, path: unknown) => {
     if (typeof path !== "string" || !existsSync(path)) return;
     // A folder opens in the file manager; a file is shown selected in its folder.
@@ -409,6 +423,8 @@ function registerIpc(): void {
     else shell.showItemInFolder(path);
   });
 }
+
+registerFileScheme();
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -431,6 +447,7 @@ if (!app.requestSingleInstanceLock()) {
     groups = SessionGroups.in(app.getPath("userData"));
     pins = SidebarPins.in(app.getPath("userData"));
     chatsDir = join(app.getPath("userData"), "chats");
+    serveFiles(electronSession.defaultSession);
     registerIpc();
     openWindow(workspaceFromArgv(process.argv, process.cwd(), app.isPackaged));
     app.on("activate", () => {
