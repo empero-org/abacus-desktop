@@ -57,6 +57,11 @@ export interface AbacusState {
   workspace: WorkspaceSession | null;
   /** The app server of the thread the window shows. */
   server: number | null;
+  /**
+   * The shown thread's server stopped by itself after a quiet spell; the next
+   * request, or the person coming back to the window, starts it again.
+   */
+  asleep: boolean;
   /** Threads left while they worked, by the app server that runs each. */
   parked: Record<number, ParkedSession>;
   /** Threads that finished a turn while the window showed another. */
@@ -116,6 +121,8 @@ export interface AbacusState {
   newThreadIn(path: string): Promise<void>;
   setView(view: AbacusState["view"]): void;
   setSection(section: AbacusState["section"]): void;
+  /** Start the shown thread's server again if it went to sleep. */
+  wake(): Promise<void>;
   /** Open settings at the Updates row. */
   showUpdates(): void;
   checkUpdates(): Promise<void>;

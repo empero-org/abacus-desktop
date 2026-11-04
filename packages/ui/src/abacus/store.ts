@@ -26,6 +26,7 @@ import { profileActions } from "./profileActions.js";
 import { agentActions } from "./agentActions.js";
 import { updateActions, watchUpdates } from "./updateActions.js";
 import { busy, park, savedSection, sessionActions, unanswerable } from "./sessionActions.js";
+import { sleeping } from "./sleep.js";
 
 import type { AbacusState } from "./state.js";
 
@@ -44,8 +45,10 @@ function errorMessage(error: unknown): string {
 
 export function createAbacusStore(bridge: AbacusBridge) {
   return create<AbacusState>((set, get) => {
+    // Requests go through `live`, which wakes a thread whose server went to sleep.
+    const { live, wake } = sleeping(bridge, get, set);
     const { refreshProfiles, refreshPresets, refreshCommands, refreshTasks } = serverLists(
-      bridge,
+      live,
       get,
       set,
     );
@@ -93,13 +96,23 @@ export function createAbacusStore(bridge: AbacusBridge) {
     };
 
     const helpers = { guard, attempt, applyConfig, refreshProfiles, errorMessage };
-    const messages = messageActions(bridge, get, set, guard);
-    const sessions = sessionActions(bridge, get, set, { guard, refreshTasks });
+    const messages = messageActions(live, get, set, guard);
+    const sessions = sessionActions(live, get, set, { guard, refreshTasks });
 
     const onMessage = (message: ServerMessage) => {
       // A thread the window left, still working.
       if (message.server !== undefined && message.server !== get().server) {
         sessions.onParked({ ...message, server: message.server });
+        return;
+      }
+      // Nothing happened for a while, so the server stopped; the thread
+      // stays on screen and the next request starts it again.
+      if (message.kind === "notification" && message.method === "server/idle") {
+        set({ asleep: true });
+        return;
+      }
+      if (message.kind === "exit" && get().asleep) {
+        set({ server: null });
         return;
       }
       if (message.kind === "exit") {
@@ -161,6 +174,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       recent: [],
       workspace: null,
       server: null,
+      asleep: false,
       parked: {},
       unread: {},
       serverVersion: null,
@@ -221,6 +235,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
           crash: null,
           thread: null,
           server: null,
+          asleep: false,
           threads: [],
           tasks: [],
           view: "chat",
@@ -263,6 +278,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
           phase: "welcome",
           workspace: null,
           server: null,
+          asleep: false,
           thread: null,
           threads: [],
           recent: await bridge.recentWorkspaces(),
@@ -292,17 +308,19 @@ export function createAbacusStore(bridge: AbacusBridge) {
       forkThread: (threadId) =>
         guard(async () => {
           const params = threadId ? { threadId } : {};
-          const snapshot = await bridge.request<ThreadSnapshot>("thread/fork", params);
+          const snapshot = await live.request<ThreadSnapshot>("thread/fork", params);
           set({ thread: threadFromSnapshot(snapshot), view: "chat" });
           // The fork is in this project, whose sessions the thread list holds.
           await get().refreshThreads();
         }),
 
       renameThread: (name) =>
-        guard(async () => void (await bridge.request("thread/name/set", { name }))),
+        guard(async () => void (await live.request("thread/name/set", { name }))),
 
       async refreshThreads() {
         try {
+          // A sleeping thread is not woken just to list its neighbours again.
+          if (get().asleep) return;
           const { threads } = await bridge.request<{ threads: ThreadSummary[] }>("thread/list");
           set({ threads });
         } catch {
@@ -313,7 +331,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
 
       ...messages.actions,
 
-      interrupt: () => guard(async () => void (await bridge.request("turn/interrupt"))),
+      interrupt: () => guard(async () => void (await live.request("turn/interrupt"))),
 
       answerApproval: (id, decision) =>
         guard(async () => {
@@ -329,11 +347,12 @@ export function createAbacusStore(bridge: AbacusBridge) {
           if (thread) set({ thread: resolvePending(thread, id) });
         }),
 
-      ...profileActions(bridge, get, set, helpers),
+      ...profileActions(live, get, set, helpers),
       refreshProfiles,
 
-      ...agentActions(bridge, get, set, { guard, applyConfig }),
-      ...updateActions(bridge, get, set, errorMessage),
+      ...agentActions(live, get, set, { guard, applyConfig }),
+      ...updateActions(live, get, set, errorMessage),
+      wake,
 
       async attach(files) {
         const thread = get().thread;
@@ -374,7 +393,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       async searchFiles(query) {
         if (!get().capabilities.fileSearch || get().phase !== "ready") return [];
         try {
-          const { files } = await bridge.request<{ files: string[] }>("files/search", {
+          const { files } = await live.request<{ files: string[] }>("files/search", {
             query,
             limit: 30,
           });
@@ -384,17 +403,17 @@ export function createAbacusStore(bridge: AbacusBridge) {
         }
       },
 
-      stopTask: (id) => guard(async () => void (await bridge.request("task/stop", { id }))),
+      stopTask: (id) => guard(async () => void (await live.request("task/stop", { id }))),
 
       clearTasks: () =>
         guard(async () => {
-          const { tasks } = await bridge.request<{ tasks: BackgroundTask[] }>("tasks/clear");
+          const { tasks } = await live.request<{ tasks: BackgroundTask[] }>("tasks/clear");
           set({ tasks });
         }),
 
       async readTask(id) {
         try {
-          return await bridge.request<{ task: BackgroundTask; items: Item[] }>("task/read", { id });
+          return await live.request<{ task: BackgroundTask; items: Item[] }>("task/read", { id });
         } catch {
           return null;
         }
@@ -409,7 +428,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
             );
             return;
           }
-          const { before, after } = await bridge.request<{ before: number; after: number }>(
+          const { before, after } = await live.request<{ before: number; after: number }>(
             "thread/compact",
           );
           get().notify(`Compacted the conversation from ${before} to ${after} messages.`);

@@ -58,6 +58,7 @@ export function Composer() {
   const setDraft = useAbacus((state) => state.setDraft);
   const send = useAbacus((state) => state.send);
   const interrupt = useAbacus((state) => state.interrupt);
+  const wake = useAbacus((state) => state.wake);
   const attachments = useAbacus((state) =>
     state.thread ? (state.attachments[state.thread.threadId] ?? NONE) : NONE,
   );
@@ -166,6 +167,7 @@ export function Composer() {
             }}
             onSelect={completion.onCaret}
             onKeyDown={onKeyDown}
+            onFocus={() => void wake().catch(() => {})}
             onPaste={onPaste}
             disabled={blocked}
             rows={1}

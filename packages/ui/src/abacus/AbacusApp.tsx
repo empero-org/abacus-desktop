@@ -52,6 +52,21 @@ function Screens() {
     );
   }, [boot]);
 
+  // Coming back to the window wakes a thread whose server stopped while it
+  // sat idle, so it is ready before the person types.
+  const wake = useAbacus((state) => state.wake);
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState === "visible") void wake().catch(() => {});
+    };
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [wake]);
+
   const cliReady = useAbacus((state) => state.cli?.state === "ready");
   if (bootError) return <Splash detail={bootError} />;
   if (phase === "booting") return <Splash />;

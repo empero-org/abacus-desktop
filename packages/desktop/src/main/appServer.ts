@@ -37,6 +37,13 @@ interface Pending {
   reject: (error: Error) => void;
 }
 
+/**
+ * How long an app server waits with nothing happening before it stops by
+ * itself (`ABACUS_IDLE_EXIT_SECS`; an abacus that predates it ignores it). The
+ * window keeps the thread and starts its server again when it is needed.
+ */
+const IDLE_EXIT_SECONDS = 300;
+
 /** Lines of stderr kept for explaining a crash: enough context, bounded memory. */
 const STDERR_TAIL = 200;
 
@@ -80,7 +87,12 @@ export class AppServer extends EventEmitter<AppServerEvents> {
     // The workspace is a positional argument, before the subcommand.
     const child = spawn(this.bin, [this.workspace, "app-server", ...this.args], {
       cwd: this.workspace,
-      env: { ...process.env, NO_COLOR: "1" },
+      env: {
+        ...process.env,
+        NO_COLOR: "1",
+        // One set where the app was started wins: 0 keeps servers running.
+        ABACUS_IDLE_EXIT_SECS: process.env.ABACUS_IDLE_EXIT_SECS ?? String(IDLE_EXIT_SECONDS),
+      },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
