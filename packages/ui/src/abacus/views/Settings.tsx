@@ -192,6 +192,8 @@ function Agent() {
   const limits = useAbacus((state) => state.agentLimits);
   const setAgentLimit = useAbacus((state) => state.setAgentLimit);
   const running = Boolean(thread?.turnId);
+  // An abacus before 0.7.7 saves settings only between turns.
+  const midTurn = useAbacus((state) => Boolean(state.capabilities.settingsMidTurn));
 
   if (!thread || !ready) {
     return (
@@ -211,7 +213,9 @@ function Agent() {
           label="Profile"
           hint={
             running
-              ? "Change it between turns."
+              ? midTurn
+                ? "The running turn keeps its profile; a change applies from the next one."
+                : "Change it between turns."
               : thread.model !== thread.profile
                 ? thread.model
                 : undefined
@@ -220,7 +224,7 @@ function Agent() {
           <Select
             value={thread.profile}
             onValueChange={(value) => void selectProfile(value)}
-            disabled={running || profiles.length === 0}
+            disabled={(running && !midTurn) || profiles.length === 0}
           >
             <SelectTrigger className="w-64">
               <SelectValue placeholder="Profile" />

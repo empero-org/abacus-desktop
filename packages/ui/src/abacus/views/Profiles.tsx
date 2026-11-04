@@ -68,7 +68,10 @@ export function ProfileList() {
 function ProfileRow({ profile, onEdit }: { profile: ProfileEntry; onEdit: () => void }) {
   const selectProfile = useAbacus((state) => state.selectProfile);
   const removeProfile = useAbacus((state) => state.removeProfile);
-  const running = useAbacus((state) => Boolean(state.thread?.turnId));
+  // An abacus before 0.7.7 switches profiles only between turns.
+  const switchLater = useAbacus(
+    (state) => Boolean(state.thread?.turnId) && !state.capabilities.settingsMidTurn,
+  );
   const only = useAbacus((state) => state.profiles.length === 1);
   const [confirming, setConfirming] = useState(false);
   const facts = profileFacts(profile);
@@ -111,8 +114,8 @@ function ProfileRow({ profile, onEdit }: { profile: ProfileEntry; onEdit: () => 
               variant="outline"
               size="sm"
               onClick={() => void selectProfile(profile.name)}
-              disabled={running}
-              title={running ? "Switch between turns" : undefined}
+              disabled={switchLater}
+              title={switchLater ? "Switch between turns" : undefined}
             >
               Use
             </Button>

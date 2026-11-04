@@ -296,13 +296,23 @@ function ProfileMenu() {
   const model = useAbacus((state) => state.thread?.model ?? "");
   const profiles = useAbacus((state) => state.profiles);
   const running = useAbacus((state) => Boolean(state.thread?.turnId));
+  // An abacus before 0.7.7 switches profiles only between turns.
+  const midTurn = useAbacus((state) => Boolean(state.capabilities.settingsMidTurn));
   const selectProfile = useAbacus((state) => state.selectProfile);
   const setView = useAbacus((state) => state.setView);
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={running}>
-        <Pill title={running ? "Change the profile between turns" : model}>
+      <DropdownMenuTrigger asChild disabled={running && !midTurn}>
+        <Pill
+          title={
+            !running
+              ? model
+              : midTurn
+                ? `${model} · a switch applies from the next turn`
+                : "Change the profile between turns"
+          }
+        >
           <span className="max-w-48 min-w-0 truncate">{profile || model || "Profile"}</span>
         </Pill>
       </DropdownMenuTrigger>
