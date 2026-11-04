@@ -168,6 +168,8 @@ export function Workspace() {
               covered={tasks.open}
               onExpandedChange={browser.setExpanded}
               onClose={() => browser.setOpen(false)}
+              width={browser.width}
+              onWidthChange={browser.setWidth}
             />
           ) : null}
         </div>

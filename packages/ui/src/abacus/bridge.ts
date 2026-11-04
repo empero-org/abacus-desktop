@@ -118,6 +118,8 @@ export interface BrowserState {
   active: number | null;
   /** The agent is driving the browser right now. */
   agent: boolean;
+  /** The pages are in a window of their own rather than the app's pane. */
+  poppedOut?: boolean;
 }
 
 export interface BrowserBridge {
@@ -138,6 +140,10 @@ export interface BrowserBridge {
   onState(listener: (state: BrowserState) => void): () => void;
   /** The agent started using the browser. */
   onAgent(listener: () => void): () => void;
+  /** Move the browser into a window of its own. */
+  popOut(): Promise<void>;
+  /** Bring a popped-out browser back into the app's pane (closing its window). */
+  dock(): Promise<void>;
 }
 
 /** Output from, or the end of, a terminal the window opened. */

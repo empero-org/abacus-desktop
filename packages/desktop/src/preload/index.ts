@@ -59,6 +59,8 @@ const bridge: AbacusBridge = {
     select: (id) => ipcRenderer.send("browser:select", id),
     close: (id) => ipcRenderer.send("browser:close", id),
     setBounds: (bounds) => ipcRenderer.send("browser:bounds", bounds),
+    popOut: () => ipcRenderer.invoke("browser:popout"),
+    dock: () => ipcRenderer.invoke("browser:dock"),
     onState: (listener) => {
       const handler = (_event: IpcRendererEvent, state: BrowserState) => listener(state);
       ipcRenderer.on("browser:state", handler);

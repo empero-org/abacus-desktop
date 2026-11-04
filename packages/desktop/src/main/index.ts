@@ -21,7 +21,8 @@ import { Sessions } from "./sessions.js";
 import { workspaceFromArgv } from "./argv.js";
 import { cliSays, compareVersions, detectCli, resolveCli } from "./cli.js";
 import { listSessions, mergeProjects } from "./projects.js";
-import { Browser } from "./browser.js";
+import type { Browser } from "./browser.js";
+import { BrowserWindows } from "./browserWindows.js";
 import { BROWSER_TOOLS, isBrowserTool, runBrowserTool } from "./browserTools.js";
 import { SessionGroups } from "./groups.js";
 import { SidebarPins } from "./pins.js";
@@ -57,21 +58,13 @@ const sessions = new Sessions({
     if (DEV_SERVER_URL) console.error(`[abacus] ${line}`);
   },
 });
-/** Each window's browser, made when first used. */
-const browsers = new Map<number, Browser>();
-
-function browserFor(contents: WebContents): Browser {
-  let browser = browsers.get(contents.id);
-  if (!browser) {
-    const window = BrowserWindow.fromWebContents(contents);
-    if (!window) throw new Error("no window for this browser");
-    browser = new Browser(window, (state) => {
-      if (!contents.isDestroyed()) contents.send("browser:state", state);
-    });
-    browsers.set(contents.id, browser);
-  }
-  return browser;
-}
+/** Each window's browser, made when first used, and the window it pops out into. */
+const browsers = new BrowserWindows(rendererPaths(OUT_DIR).preload, (window) => {
+  // The same renderer, showing nothing but the browser.
+  if (DEV_SERVER_URL) void window.loadURL(`${DEV_SERVER_URL}#browser`);
+  else void window.loadFile(rendererPaths(OUT_DIR).rendererHtml, { hash: "browser" });
+});
+const browserFor = (contents: WebContents): Browser => browsers.for(contents);
 
 /** Every window shows the same sidebar; the one that changed it already knows. */
 function tellOtherWindows(sender: WebContents, channel: string, value: unknown): void {
@@ -146,8 +139,7 @@ function openWindow(workspace?: string): BrowserWindow {
   window.on("closed", () => {
     sessions.closeWindow(id);
     closeTerminals(id);
-    browsers.get(id)?.destroy();
-    browsers.delete(id);
+    browsers.closeFor(id);
     windowWorkspaces.delete(id);
     launchWorkspaces.delete(id);
   });
@@ -287,6 +279,8 @@ function registerIpc(): void {
     browserFor(event.sender).open(typeof url === "string" ? url : undefined),
   );
   ipcMain.handle("browser:detect", () => detectDevServer());
+  ipcMain.handle("browser:popout", (event) => browsers.popOut(event.sender));
+  ipcMain.handle("browser:dock", (event) => browsers.dock(event.sender));
   const tabAction =
     (act: (browser: Browser, id: number, ...rest: unknown[]) => void) =>
     (event: IpcMainEvent, id: unknown, ...rest: unknown[]) => {
@@ -327,7 +321,11 @@ function registerIpc(): void {
       [rect.x, rect.y, rect.width, rect.height].every(
         (value) => typeof value === "number" && Number.isFinite(value),
       );
-    browserFor(event.sender).setBounds(
+    // Only the window the pages are in places them: the app's pane, or the
+    // popped-out window, never both.
+    const browser = browserFor(event.sender);
+    if (!browser.hostedBy(event.sender)) return;
+    browser.setBounds(
       valid
         ? {
             x: Math.round(rect.x as number),

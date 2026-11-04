@@ -3,21 +3,53 @@
 // agent drives the same browser through its browser tools, and the pane says
 // so while it does.
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
   GlobeIcon,
   Maximize2Icon,
   Minimize2Icon,
+  PanelRightIcon,
   PlusIcon,
   RotateCwIcon,
+  SquareArrowOutUpRightIcon,
   XIcon,
 } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
+import { Button } from "@/components/ui/button.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip.js";
 import type { BrowserState } from "../bridge.js";
+import { useColorScheme } from "../useColorScheme.js";
 import { BrandMark } from "./BrandMark.js";
+
+/** The pane's width while it is not expanded, kept for the next launch. */
+const WIDTH_KEY = "abacus.browserWidth";
+const DEFAULT_WIDTH = 560;
+const MIN_WIDTH = 320;
+/** What the pane leaves the conversation, however wide it is dragged. */
+const CONVERSATION_MIN = 360;
+
+function savedWidth(): number {
+  try {
+    const width = Number(localStorage.getItem(WIDTH_KEY));
+    return Number.isFinite(width) && width >= MIN_WIDTH ? width : DEFAULT_WIDTH;
+  } catch {
+    return DEFAULT_WIDTH;
+  }
+}
 
 const EMPTY: BrowserState = { tabs: [], active: null, agent: false };
 
@@ -26,13 +58,22 @@ export function BrowserPane({
   covered,
   onExpandedChange,
   onClose,
+  width,
+  onWidthChange,
+  popped = false,
 }: {
   expanded: boolean;
   /** Something of the window's sits over the pane (a panel, a dialog): the page steps aside. */
   covered: boolean;
   onExpandedChange: (expanded: boolean) => void;
   onClose: () => void;
+  /** The pane's width while not expanded, which dragging its edge changes. */
+  width?: number;
+  onWidthChange?: (width: number) => void;
+  /** This is a window of the browser's own (popped out), not the app's pane. */
+  popped?: boolean;
 }) {
+  const [dragging, setDragging] = useState(false);
   const browser = window.abacus?.browser;
   const [state, setState] = useState<BrowserState>(EMPTY);
   const [address, setAddress] = useState("");
@@ -46,6 +87,11 @@ export function BrowserPane({
     return browser.onState(setState);
   }, [browser]);
 
+  // A window of its own is named after the page it shows.
+  useEffect(() => {
+    if (popped) document.title = active?.title ? `${active.title} — Abacus` : "Browser — Abacus";
+  }, [popped, active?.title]);
+
   // The address bar follows the page, except while the person is typing in it.
   useEffect(() => {
     if (!editing) setAddress(active?.url && active.url !== "about:blank" ? active.url : "");
@@ -58,7 +104,7 @@ export function BrowserPane({
     const place = () => {
       const rect = element.getBoundingClientRect();
       browser.setBounds(
-        covered || rect.width < 1 || rect.height < 1
+        covered || dragging || rect.width < 1 || rect.height < 1
           ? null
           : { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
       );
@@ -72,9 +118,55 @@ export function BrowserPane({
       window.removeEventListener("resize", place);
       browser.setBounds(null);
     };
-  }, [browser, covered, active?.id, expanded]);
+  }, [browser, covered, dragging, active?.id, expanded, state.poppedOut]);
 
   if (!browser) return null;
+
+  // Popped out, the app's pane only says where the browser went.
+  if (state.poppedOut && !popped) {
+    return (
+      <aside
+        className="flex w-72 shrink-0 flex-col items-center justify-center gap-3 border-l bg-panel px-6 text-center"
+        aria-label="Browser"
+      >
+        <SquareArrowOutUpRightIcon className="size-5 text-foreground-subtle" />
+        <p className="text-ui-sm text-foreground-subtle">The browser is in a window of its own.</p>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={() => void browser.popOut()}>
+            Show it
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void browser.dock()}>
+            Bring it back
+          </Button>
+        </div>
+      </aside>
+    );
+  }
+
+  // Drag the pane's edge to size it. The page is a native view that would
+  // swallow the pointer, so it steps aside until the drag ends.
+  const resize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pane = event.currentTarget.parentElement;
+    const row = pane?.parentElement;
+    if (!pane || !row || !onWidthChange) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+    const right = pane.getBoundingClientRect().right;
+    const most = Math.max(MIN_WIDTH, row.getBoundingClientRect().width - CONVERSATION_MIN);
+    const handle = event.currentTarget;
+    const move = (moved: PointerEvent) =>
+      onWidthChange(Math.round(Math.min(most, Math.max(MIN_WIDTH, right - moved.clientX))));
+    const done = () => {
+      setDragging(false);
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", done);
+      handle.removeEventListener("pointercancel", done);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", done);
+    handle.addEventListener("pointercancel", done);
+  };
 
   const go = (input: string) => {
     if (!input.trim()) return;
@@ -92,11 +184,28 @@ export function BrowserPane({
   return (
     <aside
       className={cn(
-        "flex shrink-0 flex-col border-l bg-panel",
-        expanded ? "w-[min(78%,calc(100%-360px))]" : "w-[min(46%,720px)] min-w-[360px]",
+        "relative flex shrink-0 flex-col bg-panel",
+        popped
+          ? "min-w-0 flex-1"
+          : expanded
+            ? "w-[min(78%,calc(100%-360px))] border-l"
+            : "max-w-[calc(100%-360px)] min-w-80 border-l",
       )}
+      style={popped || expanded ? undefined : { width: width ?? DEFAULT_WIDTH }}
       aria-label="Browser"
     >
+      {popped || expanded || !onWidthChange ? null : (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the browser"
+          onPointerDown={resize}
+          className={cn(
+            "absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize hover:bg-brand/30",
+            dragging && "bg-brand/40",
+          )}
+        />
+      )}
       <div className="flex h-10 shrink-0 items-center gap-1 pr-1.5 pl-2">
         <div
           className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto scrollbar-hide"
@@ -137,19 +246,30 @@ export function BrowserPane({
             <PlusIcon className="size-3.5" />
           </PaneButton>
         </div>
-        <PaneButton
-          label={expanded ? "Collapse" : "Expand"}
-          onClick={() => onExpandedChange(!expanded)}
-        >
-          {expanded ? (
-            <Minimize2Icon className="size-3.5" />
-          ) : (
-            <Maximize2Icon className="size-3.5" />
-          )}
-        </PaneButton>
-        <PaneButton label="Close browser" onClick={onClose}>
-          <XIcon className="size-3.5" />
-        </PaneButton>
+        {popped ? (
+          <PaneButton label="Back into Abacus" onClick={() => void browser.dock()}>
+            <PanelRightIcon className="size-3.5" />
+          </PaneButton>
+        ) : (
+          <>
+            <PaneButton label="Pop out" onClick={() => void browser.popOut()}>
+              <SquareArrowOutUpRightIcon className="size-3.5" />
+            </PaneButton>
+            <PaneButton
+              label={expanded ? "Collapse" : "Expand"}
+              onClick={() => onExpandedChange(!expanded)}
+            >
+              {expanded ? (
+                <Minimize2Icon className="size-3.5" />
+              ) : (
+                <Maximize2Icon className="size-3.5" />
+              )}
+            </PaneButton>
+            <PaneButton label="Close browser" onClick={onClose}>
+              <XIcon className="size-3.5" />
+            </PaneButton>
+          </>
+        )}
       </div>
 
       <form
@@ -281,10 +401,36 @@ function PaneButton({
   );
 }
 
-/** Whether the browser pane is open and expanded; it opens when the agent starts browsing. */
+/** Whether the browser pane is open, expanded, and how wide; it opens when the agent starts browsing. */
 export function useBrowserPane() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [width, setWidth] = useState(savedWidth);
   useEffect(() => window.abacus?.browser.onAgent(() => setOpen(true)), []);
-  return { open, setOpen, expanded, setExpanded };
+  useEffect(() => {
+    try {
+      localStorage.setItem(WIDTH_KEY, String(width));
+    } catch {
+      // Unsaved, the width still holds for this window.
+    }
+  }, [width]);
+  return { open, setOpen, expanded, setExpanded, width, setWidth };
+}
+
+/** A window of the browser's own (popped out): the pane, filling it. Closing it docks the browser. */
+export function BrowserApp() {
+  useColorScheme();
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-screen bg-panel">
+        <BrowserPane
+          popped
+          expanded={false}
+          covered={false}
+          onExpandedChange={() => {}}
+          onClose={() => void window.abacus?.browser.dock()}
+        />
+      </div>
+    </TooltipProvider>
+  );
 }

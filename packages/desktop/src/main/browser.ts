@@ -10,6 +10,7 @@ import {
   type WebContents,
 } from "electron";
 import type { BrowserState } from "@abacus/ui/bridge";
+import { editWithRightClick } from "./editMenu.js";
 
 const PARTITION = "persist:abacus-browser";
 let sessionReady = false;
@@ -38,7 +39,9 @@ export function toUrl(input: string): string {
 }
 
 export class Browser {
-  readonly #window: BrowserWindow;
+  /** The window the pages are shown in: the app's, or a window of their own (popped out). */
+  #window: BrowserWindow;
+  #poppedOut = false;
   readonly #emit: (state: BrowserState) => void;
   readonly #tabs = new Map<number, WebContentsView>();
   #order: number[] = [];
@@ -68,7 +71,29 @@ export class Browser {
       }),
       active: this.#active,
       agent: this.#agent,
+      poppedOut: this.#poppedOut,
     };
+  }
+
+  /**
+   * Show the pages in `window` from now on: a window of their own when popped
+   * out, the app's again when docked. They stay hidden until that window's
+   * pane says where they go.
+   */
+  attach(window: BrowserWindow, poppedOut: boolean): void {
+    if (this.#shown) {
+      if (!this.#window.isDestroyed()) this.#window.contentView.removeChildView(this.#shown);
+      this.#shown = null;
+    }
+    this.#window = window;
+    this.#poppedOut = poppedOut;
+    this.#bounds = null;
+    this.#emit(this.state());
+  }
+
+  /** Whether `contents` is the window the pages are shown in, whose pane places them. */
+  hostedBy(contents: WebContents): boolean {
+    return !this.#window.isDestroyed() && this.#window.webContents === contents;
   }
 
   open(input?: string): number {
@@ -81,6 +106,7 @@ export class Browser {
       },
     });
     view.setBackgroundColor("#ffffff");
+    editWithRightClick(view.webContents);
     const id = this.#next++;
     this.#tabs.set(id, view);
     this.#order.push(id);

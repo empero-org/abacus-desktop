@@ -6,6 +6,7 @@
 
 import { BrowserWindow, shell } from "electron";
 import { join } from "node:path";
+import { editWithRightClick } from "./editMenu.js";
 
 /** Matches the UI's `--app-chrome-height`, so caption buttons line up with the top bar. */
 export const TITLE_BAR_HEIGHT = 44;
@@ -41,6 +42,7 @@ export function createWindow(options: {
   });
 
   window.once("ready-to-show", () => window.show());
+  editWithRightClick(window.webContents);
 
   // Links in a transcript open in the person's browser; the app window never
   // navigates away from itself, and never opens child windows.
