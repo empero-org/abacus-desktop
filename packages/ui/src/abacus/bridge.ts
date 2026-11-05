@@ -243,6 +243,8 @@ export interface AbacusBridge {
   writeTerminal(id: number, data: string): void;
   resizeTerminal(id: number, cols: number, rows: number): void;
   closeTerminal(id: number): void;
+  /** Whether the terminal's shell is at its prompt, so a command can be typed into it. */
+  terminalIdle(id: number): Promise<boolean>;
   /** Subscribe to every terminal of this window; returns the unsubscribe function. */
   onTerminal(listener: (event: TerminalEvent) => void): () => void;
 

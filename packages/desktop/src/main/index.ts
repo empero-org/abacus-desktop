@@ -35,7 +35,7 @@ import {
 import { SessionGroups } from "./groups.js";
 import { SidebarPins } from "./pins.js";
 import { RecentWorkspaces } from "./recent.js";
-import { Terminals } from "./terminal.js";
+import { answerTerminalRequests, Terminals } from "./terminal.js";
 import { checkUpdates } from "./updates.js";
 import { zoomWithKeys } from "./zoom.js";
 import { createWindow, isExternalUrl, rendererPaths } from "./window.js";
@@ -388,29 +388,7 @@ function registerIpc(): void {
     );
     return updateTerminal;
   });
-  // Keystrokes and resizes are one-way: nothing waits on them.
-  const onTerminal =
-    (handle: (host: Terminals, event: IpcMainEvent, id: number, ...rest: unknown[]) => void) =>
-    (event: IpcMainEvent, id: unknown, ...rest: unknown[]) => {
-      if (typeof id !== "number") return;
-      void terminals?.then((host) => handle(host, event, id, ...rest)).catch(() => {});
-    };
-  ipcMain.on(
-    "terminal:write",
-    onTerminal((host, event, id, data) => {
-      if (typeof data === "string") host.write(event.sender.id, id, data);
-    }),
-  );
-  ipcMain.on(
-    "terminal:resize",
-    onTerminal((host, event, id, cols, rows) =>
-      host.resize(event.sender.id, id, Number(cols), Number(rows)),
-    ),
-  );
-  ipcMain.on(
-    "terminal:close",
-    onTerminal((host, event, id) => host.close(event.sender.id, id)),
-  );
+  answerTerminalRequests(() => terminals);
 
   ipcMain.handle("shell:openExternal", (_event, url: unknown) => {
     if (typeof url === "string" && isExternalUrl(url)) return shell.openExternal(url);

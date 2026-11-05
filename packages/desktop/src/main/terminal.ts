@@ -8,7 +8,9 @@
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { basename } from "node:path";
 import type { IPty } from "@lydell/node-pty";
+import { ipcMain, type IpcMainEvent } from "electron";
 
 export type TerminalEvent =
   | { kind: "data"; id: number; data: string }
@@ -32,9 +34,27 @@ export function defaultShell(
   return { file, args: platform === "darwin" ? ["-l"] : [] };
 }
 
+/**
+ * Whether a terminal's shell is waiting at its prompt: what has the terminal
+ * (`foreground`, as node-pty names it) is the shell it started. Windows names
+ * the shell whatever runs in it, so there a terminal is never known to be free.
+ */
+export function atPrompt(
+  foreground: string,
+  shell: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if (platform === "win32") return false;
+  // A login shell's name starts with a dash.
+  const name = (file: string) => basename(file.trim()).replace(/^-/, "");
+  return name(foreground) !== "" && name(foreground) === name(shell);
+}
+
 interface Session {
   owner: number;
   pty: IPty;
+  /** What was started in it: the shell, or the one command. */
+  file: string;
   pending: string;
   timer: NodeJS.Timeout | null;
 }
@@ -69,7 +89,7 @@ export class Terminals extends EventEmitter<{ event: [owner: number, event: Term
       } as Record<string, string>,
     });
     const id = this.#nextId++;
-    const session: Session = { owner, pty, pending: "", timer: null };
+    const session: Session = { owner, pty, file, pending: "", timer: null };
     this.#sessions.set(id, session);
 
     pty.onData((data) => {
@@ -87,6 +107,12 @@ export class Terminals extends EventEmitter<{ event: [owner: number, event: Term
 
   write(owner: number, id: number, data: string): void {
     this.#own(owner, id)?.pty.write(data);
+  }
+
+  /** Whether the shell in this terminal is at its prompt, free to take a command. */
+  idle(owner: number, id: number): boolean {
+    const session = this.#own(owner, id);
+    return session !== undefined && atPrompt(session.pty.process, session.file);
   }
 
   resize(owner: number, id: number, cols: number, rows: number): void {
@@ -133,4 +159,40 @@ export class Terminals extends EventEmitter<{ event: [owner: number, event: Term
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.floor(Number.isFinite(value) ? value : min)));
+}
+
+/**
+ * Answer a window about its terminals: keystrokes, resizes and closing, which
+ * are one-way and nothing waits on, and whether a shell is at its prompt.
+ * `host` is null until the window opens its first terminal.
+ */
+export function answerTerminalRequests(host: () => Promise<Terminals> | null): void {
+  const onTerminal =
+    (handle: (terminals: Terminals, event: IpcMainEvent, id: number, ...rest: unknown[]) => void) =>
+    (event: IpcMainEvent, id: unknown, ...rest: unknown[]) => {
+      if (typeof id !== "number") return;
+      void host()
+        ?.then((terminals) => handle(terminals, event, id, ...rest))
+        .catch(() => {});
+    };
+  ipcMain.on(
+    "terminal:write",
+    onTerminal((terminals, event, id, data) => {
+      if (typeof data === "string") terminals.write(event.sender.id, id, data);
+    }),
+  );
+  ipcMain.on(
+    "terminal:resize",
+    onTerminal((terminals, event, id, cols, rows) =>
+      terminals.resize(event.sender.id, id, Number(cols), Number(rows)),
+    ),
+  );
+  ipcMain.on(
+    "terminal:close",
+    onTerminal((terminals, event, id) => terminals.close(event.sender.id, id)),
+  );
+  // Whether Run may type into a tab: its shell is at the prompt.
+  ipcMain.handle("terminal:idle", async (event, id: unknown) =>
+    typeof id === "number" ? Boolean((await host())?.idle(event.sender.id, id)) : false,
+  );
 }

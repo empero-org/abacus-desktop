@@ -1,6 +1,8 @@
 // The terminal pane: shells in the open project, one per tab, under the
 // conversation. Hidden rather than unmounted when toggled off, so the shells
-// and their scrollback survive; a new project starts fresh ones.
+// and their scrollback survive; a new project starts fresh ones. A command run
+// from the conversation goes to the open tab when its shell is at the prompt,
+// and to a new tab otherwise.
 
 import {
   useEffect,
@@ -11,12 +13,14 @@ import {
 } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { Terminal, type ITheme } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 import { ChevronDownIcon, PlusIcon, SquareTerminalIcon, XIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { TerminalEvent } from "../bridge.js";
+import { commandTitle, typedCommand, type RunRequest } from "../runCommand.js";
 import { useColorSchemeChoice } from "../useColorScheme.js";
+import { terminalTheme } from "./terminalTheme.js";
 
 const HEIGHT_KEY = "abacus.terminal.height";
 const MIN_HEIGHT = 120;
@@ -24,20 +28,59 @@ const MIN_HEIGHT = 120;
 interface Tab {
   key: number;
   title: string;
+  /** What the tab was opened to run, typed once its shell is up. */
+  command?: string;
 }
 
-export function TerminalPane({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [tabs, setTabs] = useState<Tab[]>([{ key: 1, title: "Terminal 1" }]);
+/** A tab's shell, as Run reaches it. */
+interface Shell {
+  idle(): Promise<boolean>;
+  /** Type `command` and Enter; false when there is no shell to take it. */
+  run(command: string): boolean;
+}
+
+export function TerminalPane({
+  open,
+  onClose,
+  runRequest = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  runRequest?: RunRequest | null;
+}) {
+  // A pane opened to run something runs it in its first tab.
+  const [tabs, setTabs] = useState<Tab[]>(() => [
+    runRequest
+      ? { key: 1, title: commandTitle(runRequest.command), command: runRequest.command }
+      : { key: 1, title: "Terminal 1" },
+  ]);
   const [active, setActive] = useState(1);
   const [height, setHeight] = useState(storedHeight);
   const counter = useRef(1);
+  const shells = useRef(new Map<number, Shell>());
+  const handled = useRef(runRequest?.seq ?? 0);
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
-  const add = () => {
+  const add = (command?: string) => {
     counter.current += 1;
-    const tab = { key: counter.current, title: `Terminal ${counter.current}` };
+    const tab = command
+      ? { key: counter.current, title: commandTitle(command), command }
+      : { key: counter.current, title: `Terminal ${counter.current}` };
     setTabs((current) => [...current, tab]);
     setActive(tab.key);
   };
+  const addRef = useRef(add);
+  addRef.current = add;
+
+  useEffect(() => {
+    if (!runRequest || runRequest.seq === handled.current) return;
+    handled.current = runRequest.seq;
+    const shell = shells.current.get(activeRef.current);
+    void (shell?.idle() ?? Promise.resolve(false)).then((idle) => {
+      if (!(idle && shell?.run(runRequest.command))) addRef.current(runRequest.command);
+    });
+  }, [runRequest]);
 
   const remove = (key: number) => {
     const rest = tabs.filter((tab) => tab.key !== key);
@@ -123,7 +166,7 @@ export function TerminalPane({ open, onClose }: { open: boolean; onClose: () => 
             </div>
           ))}
         </div>
-        <PaneButton label="New terminal" onClick={add}>
+        <PaneButton label="New terminal" onClick={() => add()}>
           <PlusIcon className="size-3.5" />
         </PaneButton>
         <PaneButton label="Hide terminal (Ctrl+`)" onClick={onClose}>
@@ -132,7 +175,15 @@ export function TerminalPane({ open, onClose }: { open: boolean; onClose: () => 
       </div>
       <div className="relative min-h-0 flex-1">
         {tabs.map((tab) => (
-          <TerminalView key={tab.key} visible={open && tab.key === active} />
+          <TerminalView
+            key={tab.key}
+            visible={open && tab.key === active}
+            command={tab.command}
+            onShell={(shell) => {
+              if (shell) shells.current.set(tab.key, shell);
+              else shells.current.delete(tab.key);
+            }}
+          />
         ))}
       </div>
     </section>
@@ -168,19 +219,27 @@ function PaneButton({
 /**
  * One shell. Its xterm lives as long as the tab; when the shell exits, any key
  * starts a new one in the same tab. With `run`, it runs that command once
- * instead (`abacus update`), and tells `onExit` how it ended.
+ * instead (`abacus update`), and tells `onExit` how it ended. `command` is
+ * typed once the shell first shows its prompt; `onShell` lets Run reach it.
  */
 export function TerminalView({
   visible,
   run,
   onExit,
+  command,
+  onShell,
 }: {
   visible: boolean;
   run?: "update";
   onExit?: (code: number | null) => void;
+  command?: string;
+  onShell?: (shell: Shell | null) => void;
 }) {
   const exitRef = useRef(onExit);
   exitRef.current = onExit;
+  const commandRef = useRef(command);
+  const shellRef = useRef(onShell);
+  shellRef.current = onShell;
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<{ term: Terminal; fit: FitAddon } | null>(null);
   const scheme = useColorSchemeChoice();
@@ -212,10 +271,30 @@ export function TerminalView({
     let disposed = false;
     // Output can beat the id back from the main process; hold it until then.
     const early: TerminalEvent[] = [];
+    let waiting = commandRef.current;
+    let typing = 0;
+
+    const type = (text: string) => {
+      if (id === null || exited) return false;
+      bridge.writeTerminal(id, typedCommand(text, term.modes.bracketedPasteMode));
+      term.focus();
+      return true;
+    };
+    shellRef.current?.({
+      idle: async () => id !== null && !exited && (await bridge.terminalIdle(id)),
+      run: type,
+    });
 
     const handle = (event: TerminalEvent) => {
       if (event.kind === "data") {
         term.write(event.data);
+        // The first output is the prompt coming up; a moment later the
+        // shell reads what is typed, and has said whether it takes pastes.
+        if (waiting !== undefined) {
+          const text = waiting;
+          waiting = undefined;
+          typing = window.setTimeout(() => type(text), 150);
+        }
       } else {
         exited = true;
         id = null;
@@ -282,6 +361,8 @@ export function TerminalView({
     return () => {
       disposed = true;
       clearTimeout(starting);
+      clearTimeout(typing);
+      shellRef.current?.(null);
       observer.disconnect();
       cancelAnimationFrame(frame);
       input.dispose();
@@ -334,57 +415,4 @@ function storedHeight(): number {
   } catch {
     return 280;
   }
-}
-
-const DARK_ANSI = {
-  black: "#2a2238",
-  red: "#ff8f9b",
-  green: "#7ee2a8",
-  yellow: "#f2c46b",
-  blue: "#8ab4ff",
-  magenta: "#c792ff",
-  cyan: "#7fdbe0",
-  white: "#d4cde0",
-  brightBlack: "#6a627a",
-  brightRed: "#ffb0b8",
-  brightGreen: "#a6f0c6",
-  brightYellow: "#f8d896",
-  brightBlue: "#adc9ff",
-  brightMagenta: "#dcb6ff",
-  brightCyan: "#a6eef2",
-  brightWhite: "#ffffff",
-};
-
-const LIGHT_ANSI = {
-  black: "#17121f",
-  red: "#c42b3c",
-  green: "#127a46",
-  yellow: "#8a5600",
-  blue: "#2f5bd3",
-  magenta: "#7b3fe4",
-  cyan: "#0e7c86",
-  white: "#8f88a0",
-  brightBlack: "#625b6f",
-  brightRed: "#d9485a",
-  brightGreen: "#1a9a5a",
-  brightYellow: "#a86b00",
-  brightBlue: "#4a74e6",
-  brightMagenta: "#9255f0",
-  brightCyan: "#13949f",
-  brightWhite: "#453e51",
-};
-
-/** The abacus palette, read from the live tokens so it matches the scheme on screen. */
-function terminalTheme(): ITheme {
-  const style = getComputedStyle(document.documentElement);
-  const token = (name: string) => style.getPropertyValue(name).trim();
-  const dark = document.documentElement.classList.contains("dark");
-  return {
-    background: token("--color-terminal-bg"),
-    foreground: token("--color-terminal-fg"),
-    cursor: token("--color-brand"),
-    cursorAccent: token("--color-terminal-bg"),
-    selectionBackground: dark ? "rgba(182, 107, 255, 0.32)" : "rgba(123, 63, 228, 0.22)",
-    ...(dark ? DARK_ANSI : LIGHT_ANSI),
-  };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { defaultShell, Terminals, type TerminalEvent } from "./terminal.js";
+import { atPrompt, defaultShell, Terminals, type TerminalEvent } from "./terminal.js";
 
 /** A pty that records what it is told and emits what the test says. */
 function fakePty() {
@@ -91,5 +91,19 @@ describe("defaultShell", () => {
     expect(defaultShell("linux", { SHELL: "/bin/bash", ABACUS_SHELL: "/bin/dash" }).file).toBe(
       "/bin/dash",
     );
+  });
+});
+
+describe("atPrompt", () => {
+  it("is free when the shell it started has the terminal", () => {
+    expect(atPrompt("bash", "/bin/bash", "linux")).toBe(true);
+    expect(atPrompt("-zsh", "/bin/zsh", "darwin")).toBe(true);
+    expect(atPrompt("/usr/bin/fish", "/usr/bin/fish", "linux")).toBe(true);
+  });
+
+  it("is busy while a program runs, and never known free on Windows", () => {
+    expect(atPrompt("vim", "/bin/bash", "linux")).toBe(false);
+    expect(atPrompt("", "/bin/bash", "linux")).toBe(false);
+    expect(atPrompt("powershell.exe", "powershell.exe", "win32")).toBe(false);
   });
 });

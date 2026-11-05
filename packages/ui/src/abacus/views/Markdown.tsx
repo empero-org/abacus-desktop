@@ -1,14 +1,31 @@
 // The agent's markdown: code with highlighting, math, mermaid, tables. Links
 // to the web open in the browser; anything else stays plain text, because a
-// model-written href is not something to follow blindly.
+// model-written href is not something to follow blindly. A shell block can
+// be run in the terminal pane (runCommand).
 
-import { memo, useMemo, type ComponentProps } from "react";
+import {
+  isValidElement,
+  memo,
+  useMemo,
+  type ComponentProps,
+  type ComponentType,
+  type ReactNode,
+} from "react";
+import { PlayIcon } from "lucide-react";
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { defaultRemarkPlugins, Streamdown } from "streamdown";
+import {
+  CodeBlock,
+  CodeBlockCopyButton,
+  defaultComponents,
+  defaultRemarkPlugins,
+  Streamdown,
+  useIsCodeFenceIncomplete,
+} from "streamdown";
 import type { Pluggable } from "unified";
 import { cn } from "@/components/lib/utils.js";
+import { runnable, useRunCommand } from "../runCommand.js";
 
 // Math only between `$$`: a coding agent writes "$0 and $8/month" and "$HOME
 // or $PATH" far more often than `$x$`, and single dollars turned those into
@@ -62,7 +79,74 @@ function Link({
   );
 }
 
-const components = { a: Link };
+type CodeProps = ComponentProps<"code"> & { node?: unknown; "data-block"?: unknown };
+
+const DefaultCode = defaultComponents.code as ComponentType<CodeProps>;
+
+/** A fenced block in a shell's language, where there is a terminal, gets Run; the rest render as ever. */
+function Code(props: CodeProps) {
+  const run = useRunCommand();
+  const language = /language-(\S+)/.exec(props.className ?? "")?.[1] ?? "";
+  if (!run || !("data-block" in props) || !runnable(language)) return <DefaultCode {...props} />;
+  return (
+    <ShellBlock
+      language={language}
+      className={props.className}
+      run={run}
+      text={codeText(props.children)}
+    />
+  );
+}
+
+function ShellBlock({
+  language,
+  className,
+  run,
+  text,
+}: {
+  language: string;
+  className: string | undefined;
+  run: (command: string) => void;
+  text: string;
+}) {
+  // Half a command is not one to run.
+  const incomplete = useIsCodeFenceIncomplete();
+  return (
+    <CodeBlock
+      className={className}
+      code={text}
+      language={language}
+      isIncomplete={incomplete}
+      lineNumbers={false}
+    >
+      <button
+        type="button"
+        onClick={() => run(text)}
+        disabled={incomplete}
+        title="Run in the terminal"
+        aria-label="Run in the terminal"
+        className="cursor-pointer p-1 text-muted-foreground transition-all hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <PlayIcon aria-hidden="true" size={14} />
+      </button>
+      <CodeBlockCopyButton />
+    </CodeBlock>
+  );
+}
+
+/** The text of a block, as Streamdown hands it over: a string, or one element holding it. */
+function codeText(children: ReactNode): string {
+  if (typeof children === "string") return children;
+  if (
+    isValidElement<{ children?: unknown }>(children) &&
+    typeof children.props.children === "string"
+  ) {
+    return children.props.children;
+  }
+  return "";
+}
+
+const components = { a: Link, code: Code };
 
 export const Markdown = memo(function Markdown({
   children,

@@ -3,9 +3,10 @@
 // open, or setup until a provider is connected, with the terminal pane
 // beneath; the turn's changed files on the right when asked for.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
+import { RunCommand, type RunRequest } from "../runCommand.js";
 import { nextEffort } from "../windowCommands.js";
 import { BrowserPane, useBrowserPane } from "./BrowserPane.js";
 import { ChangesPane } from "./ChangesPane.js";
@@ -52,6 +53,19 @@ export function Workspace() {
     setTerminalUsed(true);
     setTerminalOpen((open) => !open);
   };
+  // A command run from the conversation shows the terminal and goes to it.
+  const [runRequest, setRunRequest] = useState<RunRequest | null>(null);
+  const runCommand = useMemo(
+    () =>
+      terminalAvailable
+        ? (command: string) => {
+            setTerminalUsed(true);
+            setTerminalOpen(true);
+            setRunRequest((last) => ({ command, seq: (last?.seq ?? 0) + 1 }));
+          }
+        : null,
+    [terminalAvailable],
+  );
 
   // Ctrl+` shows and hides the terminal, as in most editors.
   useEffect(() => {
@@ -160,10 +174,10 @@ export function Workspace() {
               ) : needsSetup ? (
                 <Setup />
               ) : (
-                <>
+                <RunCommand.Provider value={runCommand}>
                   <Conversation />
                   <Composer />
-                </>
+                </RunCommand.Provider>
               )}
             </main>
             {terminalUsed && workspace ? (
@@ -171,6 +185,7 @@ export function Workspace() {
                 key={workspace}
                 open={terminalOpen && view === "chat"}
                 onClose={() => setTerminalOpen(false)}
+                runRequest={runRequest}
               />
             ) : null}
           </div>

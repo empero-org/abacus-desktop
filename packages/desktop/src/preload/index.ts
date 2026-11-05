@@ -41,6 +41,7 @@ const bridge: AbacusBridge = {
   writeTerminal: (id, data) => ipcRenderer.send("terminal:write", id, data),
   resizeTerminal: (id, cols, rows) => ipcRenderer.send("terminal:resize", id, cols, rows),
   closeTerminal: (id) => ipcRenderer.send("terminal:close", id),
+  terminalIdle: (id) => ipcRenderer.invoke("terminal:idle", id),
   onTerminal: (listener) => {
     const handler = (_event: IpcRendererEvent, event: TerminalEvent) => listener(event);
     ipcRenderer.on("terminal:event", handler);
