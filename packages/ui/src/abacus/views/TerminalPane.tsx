@@ -18,6 +18,7 @@ import { ChevronDownIcon, PlusIcon, SquareTerminalIcon, XIcon } from "lucide-rea
 import { cn } from "@/components/lib/utils.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import type { TerminalEvent } from "../bridge.js";
+import { speakKeyboardProtocol } from "../keyboardProtocol.js";
 import { commandTitle, typedCommand, type RunRequest } from "../runCommand.js";
 import { useColorSchemeChoice } from "../useColorScheme.js";
 import { terminalTheme } from "./terminalTheme.js";
@@ -343,6 +344,10 @@ export function TerminalView({
       }
       if (id !== null) bridge.writeTerminal(id, data);
     });
+    // A program that asks can tell Enter from Shift, Ctrl or Alt+Enter.
+    const protocol = speakKeyboardProtocol(term, (data) => {
+      if (id !== null && !exited) bridge.writeTerminal(id, data);
+    });
     const resize = term.onResize(({ cols, rows }) => {
       if (id !== null) bridge.resizeTerminal(id, cols, rows);
     });
@@ -366,6 +371,7 @@ export function TerminalView({
       observer.disconnect();
       cancelAnimationFrame(frame);
       input.dispose();
+      protocol.dispose();
       resize.dispose();
       unsubscribe();
       // An update goes on to the end when its view closes: an installer

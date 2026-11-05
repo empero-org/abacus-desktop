@@ -1,4 +1,5 @@
-// Where the person writes. Enter sends; the goal and the agent's plan are
+// Where the person writes. Enter sends and Shift, Ctrl or Alt with it starts a
+// new line (composerKeys); the goal and the agent's plan are
 // pinned at the top of the box (GoalBar, PlanBar); while a turn runs, a
 // message steers it from the stack below them (QueueBar) and the send button
 // turns into Stop when there is nothing to send. `/` completes commands and `@` files;
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import { useAbacus } from "../context.js";
+import { enterAction, insertLine } from "../composerKeys.js";
 import type { Attachment } from "../attachments.js";
 import type { AgentMode, ReasoningEffort } from "../protocol.js";
 import { AttachButton, AttachmentStrip } from "./Attachments.js";
@@ -115,10 +117,10 @@ export function Composer() {
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (completion.onKeyDown(event)) return;
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      submit();
-    }
+    const enter = enterAction(event.nativeEvent);
+    if (enter) event.preventDefault();
+    if (enter === "newline") insertLine(event.currentTarget);
+    if (enter === "send") submit();
     if (event.key === "Escape" && running) {
       event.preventDefault();
       void interrupt();

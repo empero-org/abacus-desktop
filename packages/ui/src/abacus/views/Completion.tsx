@@ -17,6 +17,7 @@ import {
   type Suggestion,
 } from "../completion.js";
 import { useAbacus } from "../context.js";
+import { enterAction } from "../composerKeys.js";
 
 export interface Completion {
   state: CompletionState | null;
@@ -120,7 +121,8 @@ export function useCompletion(
         accept(selected);
         break;
       case "Enter":
-        if (event.shiftKey) return false;
+        // A new line is still a new line with the list open.
+        if (enterAction(event.nativeEvent) === "newline") return false;
         accept(selected);
         break;
       case "Escape":
