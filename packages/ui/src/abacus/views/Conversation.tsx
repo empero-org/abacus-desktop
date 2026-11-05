@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/collapsible.js";
 import { useAbacus } from "../context.js";
 import type { Item } from "../protocol.js";
+import { rewindPoints } from "../rewindActions.js";
 import { groupSteps, stepSummary } from "../steps.js";
 import { isWorking } from "../thread.js";
 import { shownInBar } from "../tools.js";
@@ -38,6 +39,8 @@ export function Conversation() {
     [items, capabilities],
   );
   const entries = useMemo(() => groupSteps(shown), [shown]);
+  // The person's messages the conversation can go back to.
+  const points = useMemo(() => rewindPoints(items), [items]);
 
   if (shown.length === 0 && !turnId) return <EmptyThread />;
 
@@ -55,7 +58,12 @@ export function Conversation() {
       <ConversationContent className="mx-auto w-full max-w-(--content-width) gap-5 px-6 pt-6 pb-10">
         {entries.map((entry, index) =>
           entry.kind === "item" ? (
-            <ItemView key={entry.item.id} item={entry.item} live={entry.item.id === liveId} />
+            <ItemView
+              key={entry.item.id}
+              item={entry.item}
+              live={entry.item.id === liveId}
+              back={points.get(entry.item.id)}
+            />
           ) : (
             <StepGroup
               key={entry.id}

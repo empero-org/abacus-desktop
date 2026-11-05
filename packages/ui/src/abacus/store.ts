@@ -26,6 +26,7 @@ import { profileActions } from "./profileActions.js";
 import { agentActions } from "./agentActions.js";
 import { updateActions, watchUpdates } from "./updateActions.js";
 import { editActions } from "./editActions.js";
+import { rewindActions } from "./rewindActions.js";
 import { busy, park, savedSection, sessionActions, unanswerable } from "./sessionActions.js";
 import { sleeping } from "./sleep.js";
 
@@ -355,6 +356,7 @@ export function createAbacusStore(bridge: AbacusBridge) {
       ...agentActions(live, get, set, { guard, applyConfig }),
       ...updateActions(live, get, set, errorMessage),
       ...editActions(live, get, set, errorMessage),
+      ...rewindActions(live, get, set, errorMessage),
       wake,
 
       async attach(files) {

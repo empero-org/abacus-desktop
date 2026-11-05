@@ -67,6 +67,33 @@ describe("applyNotification", () => {
     expect(run(["thread/taskList/updated", { threadId: "t1", tasks }]).taskList).toEqual(tasks);
   });
 
+  it("notes when a message arrived, which a reopened thread's history does not say", () => {
+    const thread = run(
+      [
+        "item/completed",
+        {
+          threadId: "t1",
+          turnId: "turn_1",
+          completedAtMs: 1_700_000_000_000,
+          item: { id: "item_1", type: "userMessage", text: "go on" },
+        },
+      ],
+      [
+        "item/completed",
+        {
+          threadId: "t1",
+          turnId: "turn_1",
+          completedAtMs: 1_700_000_005_000,
+          item: { id: "item_2", type: "agentMessage", text: "On it." },
+        },
+      ],
+    );
+    expect(thread.items).toEqual([
+      { id: "item_1", type: "userMessage", text: "go on", at: 1_700_000_000_000 },
+      { id: "item_2", type: "agentMessage", text: "On it." },
+    ]);
+  });
+
   it("streams an agent message and lets item/completed have the last word", () => {
     const thread = run(
       ["turn/started", { threadId: "t1", turnId: "turn_1" }],

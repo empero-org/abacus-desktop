@@ -1,7 +1,7 @@
-// One transcript item: the person's message (or another session's, or a
-// subagent's), the agent's answer, its reasoning, or a tool call. Tool calls
-// stay one quiet line until opened; the files the agent showed, and what a
-// turn edited, are cards.
+// One transcript item: the person's message (see UserMessage), another
+// session's or a subagent's, the agent's answer, its reasoning, or a tool
+// call. Tool calls stay one quiet line until opened; the files the agent
+// showed, and what a turn edited, are cards.
 
 import { memo, useEffect, useState } from "react";
 import {
@@ -14,7 +14,6 @@ import {
   CopyIcon,
   FilePenIcon,
   GitBranchIcon,
-  FileTextIcon,
   GoalIcon,
   LoaderIcon,
   SquareTerminalIcon,
@@ -27,7 +26,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible.js";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog.js";
 import { cn } from "@/components/lib/utils.js";
 import { useAbacus } from "../context.js";
 import type { Item, MessageSender, ToolItemType, ToolStatus } from "../protocol.js";
@@ -37,10 +35,20 @@ import { standsAlone, toolSubject, toolVerb } from "../tools.js";
 import { PresentedFiles } from "./FileCards.js";
 import { Markdown } from "./Markdown.js";
 import { TurnEdits } from "./TurnEdits.js";
+import { UserMessage } from "./UserMessage.js";
 
 type ToolItem = Extract<Item, { status: ToolStatus }>;
 
-export const ItemView = memo(function ItemView({ item, live }: { item: Item; live: boolean }) {
+/** `back`: for the person's message, how far back it is when the conversation can go back to it. */
+export const ItemView = memo(function ItemView({
+  item,
+  live,
+  back,
+}: {
+  item: Item;
+  live: boolean;
+  back?: number;
+}) {
   switch (item.type) {
     case "userMessage":
       if (item.goal) return <GoalCarriesOn />;
@@ -48,7 +56,7 @@ export const ItemView = memo(function ItemView({ item, live }: { item: Item; liv
       return item.from ? (
         <PeerMessage text={item.text} from={item.from} />
       ) : (
-        <UserMessage text={item.text} images={item.images ?? []} files={item.files ?? []} />
+        <UserMessage item={item} back={back} />
       );
     case "agentMessage":
       return <AgentMessage text={item.text} streaming={live} />;
@@ -153,62 +161,6 @@ function SubagentReport({ text, from }: { text: string; from: MessageSender }) {
         </Markdown>
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-function UserMessage({ text, images, files }: { text: string; images: string[]; files: string[] }) {
-  return (
-    <div className="flex flex-col items-end gap-2">
-      {files.length > 0 ? (
-        <div className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
-          {files.map((path) => (
-            <span
-              key={path}
-              title={path}
-              className="flex max-w-72 items-center gap-1.5 rounded-lg border bg-card px-2 py-1 font-mono text-ui-xs text-foreground-subtle"
-            >
-              <FileTextIcon className="size-3 shrink-0 text-brand" />
-              <span className="truncate">{path}</span>
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {images.length > 0 ? (
-        <div className="flex max-w-[85%] flex-wrap justify-end gap-2">
-          {images.map((url, index) => (
-            <ImagePreview key={index} url={url} label={`Image ${index + 1}`} />
-          ))}
-        </div>
-      ) : null}
-      {text.trim() ? (
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-card px-4 py-2.5 text-ui-base leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] shadow-[inset_0_0_0_1px_var(--color-border)]">
-          {text}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ImagePreview({ url, label }: { url: string; label: string }) {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className="overflow-hidden rounded-xl border hover:border-border-hover"
-          aria-label={`Open ${label}`}
-        >
-          <img src={url} alt={label} className="max-h-40 max-w-60 object-cover" />
-        </button>
-      </DialogTrigger>
-      <DialogContent
-        className="w-auto max-w-[min(90vw,1200px)] p-2 sm:max-w-[min(90vw,1200px)]"
-        showCloseButton={false}
-      >
-        <DialogTitle className="sr-only">{label}</DialogTitle>
-        <img src={url} alt={label} className="max-h-[85vh] max-w-full rounded-lg object-contain" />
-      </DialogContent>
-    </Dialog>
   );
 }
 

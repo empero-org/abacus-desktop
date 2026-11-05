@@ -122,8 +122,14 @@ export function applyNotification(thread: ThreadView, method: string, params: un
     }
     case "item/started":
     case "item/completed": {
-      const { item } = params as Notifications["item/completed"];
-      return { ...thread, items: upsertItem(thread.items, item) };
+      const { item, completedAtMs } = params as Notifications["item/completed"];
+      const { startedAtMs } = params as Notifications["item/started"];
+      // A message says when it arrived; history from the server does not.
+      const at = completedAtMs ?? startedAtMs ?? Date.now();
+      return {
+        ...thread,
+        items: upsertItem(thread.items, item.type === "userMessage" ? { ...item, at } : item),
+      };
     }
     case "item/agentMessage/delta": {
       const { itemId, delta } = params as Notifications["item/agentMessage/delta"];

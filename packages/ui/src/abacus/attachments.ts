@@ -3,6 +3,8 @@
 // as text: by path when they have one on disk (the app server reads them and
 // names them by their place in the workspace), otherwise read here.
 
+import type { MessageDraft } from "./protocol.js";
+
 export type Attachment =
   | { id: string; kind: "image"; name: string; url: string }
   | { id: string; kind: "file"; name: string; path: string }
@@ -88,6 +90,19 @@ export async function readAttachment(file: File, path: string | null): Promise<A
   return path
     ? { id, kind: "file", name, path }
     : { id, kind: "file", name, text: await file.text() };
+}
+
+/** What a message rewound or forked from had attached, to attach again. */
+export function draftAttachments(draft: MessageDraft): Attachment[] {
+  const images = draft.images.map((url, index): Attachment => {
+    counter += 1;
+    return { id: `attachment-${counter}`, kind: "image", name: `Image ${index + 1}`, url };
+  });
+  const files = draft.files.map(({ name, text }): Attachment => {
+    counter += 1;
+    return { id: `attachment-${counter}`, kind: "file", name, text };
+  });
+  return [...images, ...files];
 }
 
 /** An attachment as an app server `turn/start` input part. */

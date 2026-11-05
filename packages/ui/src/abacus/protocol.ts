@@ -59,6 +59,8 @@ export type Item =
       report?: boolean;
       /** An unfinished goal started this turn by itself; nobody wrote it (CLI 0.7.6 and later). */
       goal?: boolean;
+      /** Not from the server: when the window saw it arrive, in ms; unknown in a reopened thread. */
+      at?: number;
     }
   | { id: string; type: "agentMessage"; text: string }
   | { id: string; type: "reasoning"; text: string }
@@ -110,6 +112,17 @@ export interface ThreadSnapshot {
   /** The agent's own task list for the work at hand (CLI 0.7.5 and later). */
   taskList?: TaskEntry[];
   items: Item[];
+  /** The message `thread/rewind` or a `thread/fork` with `back` went back to, to edit and send again. */
+  draft?: MessageDraft;
+}
+
+/** One of the person's messages as the composer takes it back (CLI 0.7.8 and later). */
+export interface MessageDraft {
+  text: string;
+  /** Data URLs. */
+  images: string[];
+  /** Each attached file with what it held. */
+  files: { name: string; text: string }[];
 }
 
 /** One step of the agent's task list. */

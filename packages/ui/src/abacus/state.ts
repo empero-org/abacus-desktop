@@ -141,6 +141,13 @@ export interface AbacusState {
   openThread(threadId: string): Promise<void>;
   /** Continue a thread of this project (the open one by default) as a fork, and open the fork. */
   forkThread(threadId?: string): Promise<void>;
+  /**
+   * Go back to before one of the person's messages, `back` from the end, and
+   * put it in the composer; whether it went. Needs the `rewind` capability.
+   */
+  rewindTo(item: Extract<Item, { type: "userMessage" }>, back: number): Promise<boolean>;
+  /** The same in a new thread up to that message, leaving this one as it was; whether it went. */
+  forkFrom(item: Extract<Item, { type: "userMessage" }>, back: number): Promise<boolean>;
   renameThread(name: string): Promise<void>;
   refreshThreads(): Promise<void>;
 
