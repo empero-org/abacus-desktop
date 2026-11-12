@@ -6,6 +6,7 @@ import {
   elapsed,
   thoughtTitle,
   tokenCount,
+  untilDue,
 } from "./format.js";
 import { toolActivity } from "./tools.js";
 
@@ -84,5 +85,16 @@ describe("the context bar", () => {
     const ticks = compactionTicks({ trim: 60_000, idle: null, summary: 400_000 }, 200_000);
     expect(ticks.map((tick) => tick.kind)).toEqual(["trim"]);
     expect(compactionTicks(null, 200_000)).toEqual([]);
+  });
+});
+
+describe("untilDue", () => {
+  it("counts down in whole seconds, rounding up, and says now once due", () => {
+    const now = 1_700_000_000_000;
+    expect(untilDue(now + 42_000, now)).toBe("in 42s");
+    expect(untilDue(now + 41_200, now)).toBe("in 42s");
+    expect(untilDue(now + 125_000, now)).toBe("in 2m 05s");
+    expect(untilDue(now + 500, now)).toBe("now");
+    expect(untilDue(now - 3_000, now)).toBe("now");
   });
 });

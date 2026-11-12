@@ -67,6 +67,14 @@ describe("applyNotification", () => {
     expect(run(["thread/taskList/updated", { threadId: "t1", tasks }]).taskList).toEqual(tasks);
   });
 
+  it("follows the timers the agent set to wake itself", () => {
+    expect(threadFromSnapshot(snapshot).timers).toEqual([]);
+    const timers = [{ id: 2, note: "check the build", dueAtMs: 1_700_000_060_000 }];
+    expect(threadFromSnapshot({ ...snapshot, timers }).timers).toEqual(timers);
+    expect(run(["thread/timers/updated", { threadId: "t1", timers }]).timers).toEqual(timers);
+    expect(run(["thread/timers/updated", { threadId: "t2", timers }]).timers).toEqual([]);
+  });
+
   it("notes when a message arrived, which a reopened thread's history does not say", () => {
     const thread = run(
       [

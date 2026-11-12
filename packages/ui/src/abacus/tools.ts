@@ -37,6 +37,8 @@ const BUILT_IN: Record<string, Verbs> = {
   send_message: ["Messaging", "Messaged", "message"],
   mode_set: ["Switching mode", "Switched mode", "switch mode"],
   ask_user: ["Asking", "Asked", "ask"],
+  timer: ["Setting a timer for", "Set a timer for", "set a timer for"],
+  timer_cancel: ["Cancelling", "Cancelled", "cancel"],
   // The desktop's own browser tools.
   browser_navigate: ["Opening", "Opened", "open"],
   browser_read_page: ["Reading the page", "Read the page", "read the page"],
@@ -122,6 +124,7 @@ const ACTIVITY: Record<string, string> = {
   ask_user: "Asking a question",
   mode_set: "Switching mode",
   tool_search: "Looking up tools",
+  timer: "Setting a timer",
 };
 
 /** What a worker is doing, in words: the tool it is in, or thinking between tools. */

@@ -136,6 +136,8 @@ export interface AbacusState {
   readDiff(checkpoint: string | null): Promise<string>;
   /** Put back what a turn edited; whether it was. */
   undoEdits(checkpoint: string): Promise<boolean>;
+  /** Take back a timer the agent set to wake itself, or all of them; whether any went. */
+  cancelTimer(id: number | "all"): Promise<boolean>;
 
   newThread(): Promise<void>;
   openThread(threadId: string): Promise<void>;

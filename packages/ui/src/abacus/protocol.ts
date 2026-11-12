@@ -59,6 +59,12 @@ export type Item =
       report?: boolean;
       /** An unfinished goal started this turn by itself; nobody wrote it (CLI 0.7.6 and later). */
       goal?: boolean;
+      /**
+       * A timer the agent set came due and woke it: `text` is its note, `from.title`
+       * names the timer, `after` is how long it ran (CLI 0.7.9 and later).
+       */
+      timer?: boolean;
+      after?: string;
       /** Not from the server: when the window saw it arrive, in ms; unknown in a reopened thread. */
       at?: number;
     }
@@ -111,6 +117,8 @@ export interface ThreadSnapshot {
   goal?: Goal | null;
   /** The agent's own task list for the work at hand (CLI 0.7.5 and later). */
   taskList?: TaskEntry[];
+  /** The timers the agent set to wake itself, soonest first (CLI 0.7.9 and later). */
+  timers?: PendingTimer[];
   items: Item[];
   /** The message `thread/rewind` or a `thread/fork` with `back` went back to, to edit and send again. */
   draft?: MessageDraft;
@@ -123,6 +131,15 @@ export interface MessageDraft {
   images: string[];
   /** Each attached file with what it held. */
   files: { name: string; text: string }[];
+}
+
+/** A wake-up the agent set with its timer tool, waiting to fire. */
+export interface PendingTimer {
+  id: number;
+  /** What the agent will do when it fires, in its words. */
+  note: string;
+  /** When it fires, in Unix milliseconds. */
+  dueAtMs: number;
 }
 
 /** One step of the agent's task list. */
@@ -371,6 +388,8 @@ export interface Notifications {
   "thread/goal/updated": { threadId: string; goal: Goal | null };
   /** The agent added to its task list or checked a step off (capability `taskList`). */
   "thread/taskList/updated": { threadId: string; tasks: TaskEntry[] };
+  /** The agent set a timer, one came due, or one was cancelled (capability `timers`). */
+  "thread/timers/updated": { threadId: string; timers: PendingTimer[] };
   "thread/profile/updated": ConfigValueResult;
   "thread/tokenUsage/updated": {
     threadId: string;

@@ -8,6 +8,8 @@ describe("toolVerb", () => {
     expect(toolVerb("run_command", "commandExecution", "awaitingApproval")).toBe("Wants to run");
     expect(toolVerb("edit_file", "fileChange", "aborted")).toBe("Stopped: edit");
     expect(toolVerb("run_command", "commandExecution", "declined")).toBe("Did not run");
+    expect(toolVerb("timer", "functionCall", "completed")).toBe("Set a timer for");
+    expect(toolVerb("timer_cancel", "functionCall", "completed")).toBe("Cancelled");
     expect(toolVerb("browser_type", "functionCall", "awaitingApproval")).toBe("Wants to type into");
   });
 

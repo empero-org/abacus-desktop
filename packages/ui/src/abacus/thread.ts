@@ -12,6 +12,7 @@ import type {
   Goal,
   Item,
   Notifications,
+  PendingTimer,
   ReasoningEffort,
   ServerRequest,
   TaskEntry,
@@ -40,6 +41,8 @@ export interface ThreadView {
   goal: Goal | null;
   /** The agent's task list, in order; empty when it keeps none. */
   taskList: TaskEntry[];
+  /** The timers the agent set to wake itself, soonest first. */
+  timers: PendingTimer[];
   items: Item[];
   /** The running turn, or null when the agent is idle. */
   turnId: string | null;
@@ -64,6 +67,7 @@ export function threadFromSnapshot(snapshot: ThreadSnapshot): ThreadView {
     usage: snapshot.usage ?? null,
     goal: snapshot.goal ?? null,
     taskList: snapshot.taskList ?? [],
+    timers: snapshot.timers ?? [],
     items: snapshot.items ?? [],
     turnId: null,
     lastTurnStatus: null,
@@ -147,6 +151,8 @@ export function applyNotification(thread: ThreadView, method: string, params: un
       return { ...thread, goal: (params as Notifications["thread/goal/updated"]).goal };
     case "thread/taskList/updated":
       return { ...thread, taskList: (params as Notifications["thread/taskList/updated"]).tasks };
+    case "thread/timers/updated":
+      return { ...thread, timers: (params as Notifications["thread/timers/updated"]).timers };
     case "thread/profile/updated": {
       // Another profile, or the same one changed: the session runs what it says now.
       const update = params as Notifications["thread/profile/updated"];

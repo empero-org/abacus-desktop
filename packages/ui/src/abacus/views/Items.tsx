@@ -5,6 +5,7 @@
 
 import { memo, useEffect, useState } from "react";
 import {
+  AlarmClockIcon,
   BanIcon,
   BotIcon,
   BrainIcon,
@@ -52,6 +53,8 @@ export const ItemView = memo(function ItemView({
   switch (item.type) {
     case "userMessage":
       if (item.goal) return <GoalCarriesOn />;
+      if (item.timer)
+        return <TimerFired note={item.text} title={item.from?.title} after={item.after} />;
       if (item.report && item.from) return <SubagentReport text={item.text} from={item.from} />;
       return item.from ? (
         <PeerMessage text={item.text} from={item.from} />
@@ -98,6 +101,23 @@ function GoalCarriesOn() {
         Goal not done yet, carrying on
       </span>
       <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/** Where a timer the agent set came due and woke it, with what it meant to do then. */
+function TimerFired({ note, title, after }: { note: string; title?: string; after?: string }) {
+  return (
+    <div className="flex items-center gap-3 text-ui-sm text-foreground-subtlest" role="separator">
+      <span className="h-px min-w-6 flex-1 bg-border" />
+      <span className="flex max-w-[80%] min-w-0 items-center gap-1.5" title={note}>
+        <AlarmClockIcon className="size-3.5 shrink-0 text-brand" />
+        <span className="shrink-0">
+          {title ?? "Timer"} fired{after ? ` after ${after}` : ""}
+        </span>
+        <span className="truncate text-foreground-subtle">· {note}</span>
+      </span>
+      <span className="h-px min-w-6 flex-1 bg-border" />
     </div>
   );
 }

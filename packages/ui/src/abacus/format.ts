@@ -97,6 +97,12 @@ export function elapsed(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
 }
 
+/** How long until a timer fires, rounded up: "in 42s", or "now" once it is due. */
+export function untilDue(dueAtMs: number, now: number): string {
+  const left = dueAtMs - now;
+  return left < 1000 ? "now" : `in ${elapsed(left + 999)}`;
+}
+
 /** 950 -> "950", 196_800 -> "196.8k", 2_400_000 -> "2.4M". */
 export function tokenCount(value: number): string {
   if (value < 1000) return String(value);

@@ -1,6 +1,7 @@
 // Where the person writes. Enter sends and Shift, Ctrl or Alt with it starts a
 // new line (composerKeys); the goal and the agent's plan are
-// pinned at the top of the box (GoalBar, PlanBar); while a turn runs, a
+// pinned at the top of the box (GoalBar, PlanBar), with the timers the agent
+// set to wake itself (TimersBar); while a turn runs, a
 // message steers it from the stack below them (QueueBar) and the send button
 // turns into Stop when there is nothing to send. `/` completes commands and `@` files;
 // images and text files come in by paste, drop or the attach button. Anything
@@ -45,6 +46,7 @@ import { CompletionList, useCompletion } from "./Completion.js";
 import { ContextBar } from "./ContextBar.js";
 import { GoalBar } from "./GoalBar.js";
 import { PlanBar } from "./PlanBar.js";
+import { TimersBar } from "./TimersBar.js";
 import { QueueBar } from "./QueueBar.js";
 import { Requests } from "./Requests.js";
 
@@ -157,6 +159,7 @@ export function Composer() {
         >
           <GoalBar key={thread.threadId} />
           <PlanBar key={`plan-${thread.threadId}`} />
+          <TimersBar key={`timers-${thread.threadId}`} />
           <QueueBar />
           <CompletionList completion={completion} />
           {attachments.length > 0 ? <AttachmentStrip attachments={attachments} /> : null}
